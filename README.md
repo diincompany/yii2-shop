@@ -78,6 +78,9 @@ if (is_file(Yii::getAlias($shopRoutes))) {
 
 Available routes include: `shop`, `shop/cart`, `shop/checkout`, `shop/confirmation/<hash>`, `shop/category/<slug>`, `shop/products/<slug>`, cart AJAX endpoints, and more. See [`routes.php`](routes.php) for the full list.
 
+Important: cart AJAX endpoints are exposed under the `/shop/*` prefix (for example, `/shop/cart/add-item`).
+Do not post to `/cart/*` or `/streetid-store/cart/*`.
+
 ## Host Integration Contracts
 
 The module defines three contracts that the host application must satisfy:
@@ -85,6 +88,8 @@ The module defines three contracts that the host application must satisfy:
 ### `ShopApiClientInterface` _(required)_
 
 Resolved via the `apiClientComponent` config key (default: `'diinapi'`). Must be a Yii application component implementing `diincompany\shop\contracts\ShopApiClientInterface`.
+
+If the configured component does not implement the contract, the module throws `yii\base\InvalidConfigException` with a descriptive message.
 
 Key methods include: `getProducts()`, `getProduct()`, `getCategories()`, `postOrder()`, `getOrderByHash()`, `calculateShippingQuote()`, `getAccessToken()`, etc.
 
@@ -94,11 +99,15 @@ Resolved via `loggerComponent`. Falls back automatically to:
 1. `logtail` app component, wrapped in `YiiComponentShopLogger`
 2. `NullShopLogger` (silent no-op)
 
+If `loggerComponent` is explicitly configured and does not implement the contract, the module throws `yii\base\InvalidConfigException`.
+
 Interface: `info()`, `warning()`, `error()`, `critical()`, `debug()`
 
 ### `ShopSessionContextInterface` _(optional)_
 
 Resolved via `sessionContextComponent`. Falls back to `DefaultShopSessionContext`, which uses Yii's built-in session.
+
+If `sessionContextComponent` is explicitly configured and does not implement the contract, the module throws `yii\base\InvalidConfigException`.
 
 Interface: `getAnonymousSessionId(bool $regenerate = false): string`
 
