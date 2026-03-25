@@ -50,7 +50,8 @@ class AddToCartButton extends Widget
 
     private function registerClientScript($buttonId) {
         $moduleRoute = $this->resolveModuleRoute();
-        $addToCartUrl = Url::to([$moduleRoute . '/cart/add-item']);
+        // Ensure absolute URL by always prefixing with /shop route
+        $addToCartUrl = Url::to(['/shop/cart/add-item']);
         
         $js = <<<JS
             $('#$buttonId').off('click').on('click', function(e) {

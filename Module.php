@@ -3,6 +3,7 @@
 namespace diincompany\shop;
 
 use Yii;
+use yii\base\InvalidConfigException;
 use diincompany\shop\contracts\ShopApiClientInterface;
 use diincompany\shop\contracts\ShopLoggerInterface;
 use diincompany\shop\contracts\ShopSessionContextInterface;
@@ -95,13 +96,27 @@ class Module extends \yii\base\Module
 
     public function getApiClient(): ShopApiClientInterface
     {
-        return Yii::$app->get($this->apiClientComponent);
+        $component = Yii::$app->get($this->apiClientComponent);
+        if (!$component instanceof ShopApiClientInterface) {
+            throw new InvalidConfigException(
+                "The '" . $this->apiClientComponent . "' component does not implement ShopApiClientInterface. "
+                . "Please configure a valid component in module config 'apiClientComponent'."
+            );
+        }
+        return $component;
     }
 
     public function getLogger(): ShopLoggerInterface
     {
         if ($this->loggerComponent !== null) {
-            return Yii::$app->get($this->loggerComponent);
+            $component = Yii::$app->get($this->loggerComponent);
+            if (!$component instanceof ShopLoggerInterface) {
+                throw new InvalidConfigException(
+                    "The '" . $this->loggerComponent . "' component does not implement ShopLoggerInterface. "
+                    . "Please configure a valid component in module config 'loggerComponent'."
+                );
+            }
+            return $component;
         }
 
         $component = Yii::$app->get('logtail', false);
@@ -115,7 +130,14 @@ class Module extends \yii\base\Module
     public function getSessionContext(): ShopSessionContextInterface
     {
         if ($this->sessionContextComponent !== null) {
-            return Yii::$app->get($this->sessionContextComponent);
+            $component = Yii::$app->get($this->sessionContextComponent);
+            if (!$component instanceof ShopSessionContextInterface) {
+                throw new InvalidConfigException(
+                    "The '" . $this->sessionContextComponent . "' component does not implement ShopSessionContextInterface. "
+                    . "Please configure a valid component in module config 'sessionContextComponent'."
+                );
+            }
+            return $component;
         }
 
         return new DefaultShopSessionContext();

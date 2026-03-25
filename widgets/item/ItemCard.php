@@ -38,8 +38,13 @@ class ItemCard extends Widget
         
         $url = Url::to($this->link);
         
-        // TODO: QuoteButton widget is not available in the new module. ItemCard is legacy.
-        $button = ''; // QuoteButton::widget(['params' => ['pid' => $this->product_id]]);
+        /**
+         * QuoteButton widget is not available in the new module.
+         * ItemCard is considered legacy and may be removed in a future version.
+         * If you need quote functionality, implement a custom button or use an alternative widget.
+         * You can configure a custom button widget via an extended ItemCard subclass.
+         */
+        $button = '';
 
         if($this->enabled_stock) {
             $outOfStock =  $this->out_of_stock ? Html::tag('div',Yii::t('shop','Sin Existencia'), [
