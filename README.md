@@ -53,11 +53,11 @@ In `config/web.php`:
 
         // Optional: Yii component ID that implements ShopLoggerInterface
         // Falls back to 'logtail' component (wrapped), then NullShopLogger
-        // 'loggerComponent' => null,
+        // 'loggerComponent' => 'shopLogger',
 
         // Optional: Yii component ID that implements ShopSessionContextInterface
         // Falls back to DefaultShopSessionContext (Yii session-based)
-        // 'sessionContextComponent' => null,
+        // 'sessionContextComponent' => 'shopSessionContext',
     ],
 ],
 ```
@@ -107,7 +107,7 @@ Interface: `getAnonymousSessionId(bool $regenerate = false): string`
 The module registers the `@diinshop` alias pointing to its root directory on `init()`. Use it to reference module assets or views from host code:
 
 ```php
-Yii::getAlias('@diinshop/views/...')
+Yii::getAlias('@diinshop/views/...');
 ```
 
 ## Widgets
