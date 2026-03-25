@@ -18,7 +18,7 @@
   },
   "autoload": {
     "psr-4": {
-      "DiinCompany\\Yii2Shop\\": ""
+      "diincompany\\shop\\": ""
     }
   },
   "support": {

@@ -1,6 +1,6 @@
 <?php
 
-use DiinCompany\Yii2Shop\widgets\product\ProductCard;
+use diincompany\shop\widgets\product\ProductCard;
 
 /**
  * @var array $relatedProducts

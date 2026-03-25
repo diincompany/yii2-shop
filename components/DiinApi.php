@@ -1,12 +1,13 @@
 <?php
-namespace DiinCompany\Yii2Shop\components;
+namespace diincompany\shop\components;
 
 use GuzzleHttp\Client;
 use Yii;
 use yii\base\Component;
 use yii\helpers\VarDumper;
+use diincompany\shop\contracts\ShopApiClientInterface;
 
-class DiinApi extends Component
+class DiinApi extends Component implements ShopApiClientInterface
 {
     public string $host;
     public string $merchantCode;

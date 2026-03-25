@@ -1,6 +1,6 @@
 <?php
 
-namespace DiinCompany\Yii2Shop\assets;
+namespace diincompany\shop\assets;
 
 use yii\web\AssetBundle;
 

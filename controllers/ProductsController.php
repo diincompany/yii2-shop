@@ -1,12 +1,12 @@
 <?php
 
-namespace DiinCompany\Yii2Shop\controllers;
+namespace diincompany\shop\controllers;
 
 use Yii;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
-use DiinCompany\Yii2Shop\contracts\ShopApiClientInterface;
-use DiinCompany\Yii2Shop\Module as ShopModule;
+use diincompany\shop\contracts\ShopApiClientInterface;
+use diincompany\shop\Module as ShopModule;
 
 /**
  * Products controller for the shop module

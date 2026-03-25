@@ -1,11 +1,11 @@
 <?php
 
-namespace DiinCompany\Yii2Shop\controllers;
+namespace diincompany\shop\controllers;
 
-use DiinCompany\Yii2Shop\contracts\ShopApiClientInterface;
-use DiinCompany\Yii2Shop\contracts\ShopLoggerInterface;
-use DiinCompany\Yii2Shop\Module as ShopModule;
-use DiinCompany\Yii2Shop\models\QuoteForm;
+use diincompany\shop\contracts\ShopApiClientInterface;
+use diincompany\shop\contracts\ShopLoggerInterface;
+use diincompany\shop\Module as ShopModule;
+use diincompany\shop\models\QuoteForm;
 use Yii;
 use yii\helpers\VarDumper;
 use yii\web\Controller;

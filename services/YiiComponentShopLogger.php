@@ -1,8 +1,8 @@
 <?php
 
-namespace DiinCompany\Yii2Shop\services;
+namespace diincompany\shop\services;
 
-use DiinCompany\Yii2Shop\contracts\ShopLoggerInterface;
+use diincompany\shop\contracts\ShopLoggerInterface;
 
 class YiiComponentShopLogger implements ShopLoggerInterface
 {

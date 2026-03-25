@@ -1,6 +1,6 @@
 <?php
 
-namespace DiinCompany\Yii2Shop\contracts;
+namespace diincompany\shop\contracts;
 
 interface ShopApiClientInterface
 {

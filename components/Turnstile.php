@@ -1,6 +1,6 @@
 <?php
 
-namespace DiinCompany\Yii2Shop\components;
+namespace diincompany\shop\components;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
@@ -17,7 +17,7 @@ use yii\web\View;
  *
  * ```php
  * 'turnstile' => [
- *     'class'     => 'DiinCompany\Yii2Shop\components\Turnstile',
+ *     'class'     => 'diincompany\shop\components\Turnstile',
  *     'siteKey'   => 'your-site-key',
  *     'secretKey' => 'your-secret-key',
  * ],

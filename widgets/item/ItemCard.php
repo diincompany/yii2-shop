@@ -1,7 +1,7 @@
 <?php
-namespace app\modules\store\widgets\item;
+namespace diincompany\shop\widgets\item;
 
-use app\modules\store\widgets\QuoteButton;
+use diincompany\shop\Module as ShopModule;
 use Yii;
 use yii\base\Widget;
 use yii\helpers\Html;
@@ -21,6 +21,7 @@ class ItemCard extends Widget
 
     public function init() {
         parent::init();
+        ShopModule::registerTranslations();
 
         $this->label = $this->label ?: Yii::t('shop','Cotizar');
         $this->img = !empty($this->img) ? $this->img.'?tr=h-300,w-300' : 'https://ik.imagekit.io/ready/diin/img/site/placeholder.png';
@@ -37,11 +38,8 @@ class ItemCard extends Widget
         
         $url = Url::to($this->link);
         
-        $button = QuoteButton::widget([
-            'params' => [
-                'pid' => $this->product_id,
-            ],
-        ]);
+        // TODO: QuoteButton widget is not available in the new module. ItemCard is legacy.
+        $button = ''; // QuoteButton::widget(['params' => ['pid' => $this->product_id]]);
 
         if($this->enabled_stock) {
             $outOfStock =  $this->out_of_stock ? Html::tag('div',Yii::t('shop','Sin Existencia'), [

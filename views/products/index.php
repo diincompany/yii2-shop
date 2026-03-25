@@ -1,6 +1,6 @@
 <?php
-use DiinCompany\Yii2Shop\widgets\product\ProductCard;
-use DiinCompany\Yii2Shop\widgets\SeoMeta;
+use diincompany\shop\widgets\product\ProductCard;
+use diincompany\shop\widgets\SeoMeta;
 use yii\helpers\Url;
 
 /* @var $this yii\web\View */

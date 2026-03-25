@@ -1,7 +1,7 @@
 <?php
-namespace DiinCompany\Yii2Shop\models;
+namespace diincompany\shop\models;
 
-use DiinCompany\Yii2Shop\services\ShopServiceLocator;
+use diincompany\shop\services\ShopServiceLocator;
 use Yii;
 use yii\base\Model;
 use yii\helpers\VarDumper;

@@ -1,6 +1,6 @@
 <?php
 
-namespace DiinCompany\Yii2Shop\widgets;
+namespace diincompany\shop\widgets;
 
 use Yii;
 use yii\base\Widget;
