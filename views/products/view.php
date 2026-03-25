@@ -1,5 +1,5 @@
 <?php
-use DiinCompany\Yii2Shop\widgets\SeoMeta;
+use diincompany\shop\widgets\SeoMeta;
 use yii\helpers\Html;
 use yii\helpers\Url;
 

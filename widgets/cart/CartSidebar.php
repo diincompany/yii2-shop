@@ -1,8 +1,8 @@
 <?php
-namespace DiinCompany\Yii2Shop\widgets\cart;
+namespace diincompany\shop\widgets\cart;
 
-use DiinCompany\Yii2Shop\assets\CartAsset;
-use DiinCompany\Yii2Shop\Module as ShopModule;
+use diincompany\shop\assets\CartAsset;
+use diincompany\shop\Module as ShopModule;
 use Yii;
 use yii\base\Widget;
 use yii\helpers\Url;
@@ -13,12 +13,12 @@ class CartSidebar extends Widget
 
     public function init() {
         parent::init();
+        ShopModule::registerTranslations();
 
         $this->params = $this->params ?: [];
     }
 
     public function run() {
-        ShopModule::registerTranslations();
 
         $view = $this->getView();
         CartAsset::register($view);

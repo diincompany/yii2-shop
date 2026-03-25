@@ -1,8 +1,14 @@
 <?php
 
-namespace DiinCompany\Yii2Shop;
+namespace diincompany\shop;
 
 use Yii;
+use diincompany\shop\contracts\ShopApiClientInterface;
+use diincompany\shop\contracts\ShopLoggerInterface;
+use diincompany\shop\contracts\ShopSessionContextInterface;
+use diincompany\shop\services\DefaultShopSessionContext;
+use diincompany\shop\services\NullShopLogger;
+use diincompany\shop\services\YiiComponentShopLogger;
 
 /**
  * store module definition class
@@ -12,7 +18,7 @@ class Module extends \yii\base\Module
     /**
      * {@inheritdoc}
      */
-    public $controllerNamespace = 'DiinCompany\Yii2Shop\controllers';
+    public $controllerNamespace = 'diincompany\shop\controllers';
 
     /**
      * Default layout used by shop controllers.
@@ -33,13 +39,37 @@ class Module extends \yii\base\Module
     public $breadcrumbsView = null;
 
     /**
+     * The app component ID that implements ShopApiClientInterface.
+     * Override in module config if your project uses a different component name.
+     *
+     * @var string
+     */
+    public $apiClientComponent = 'diinapi';
+
+    /**
+     * Optional app component ID that implements ShopLoggerInterface.
+     * If null, falls back to 'logtail' component (wrapped) or NullShopLogger.
+     *
+     * @var string|null
+     */
+    public $loggerComponent = null;
+
+    /**
+     * Optional app component ID that implements ShopSessionContextInterface.
+     * If null, DefaultShopSessionContext is used (Yii session-based).
+     *
+     * @var string|null
+     */
+    public $sessionContextComponent = null;
+
+    /**
      * {@inheritdoc}
      */
     public function init()
     {
         parent::init();
 
-        Yii::setAlias('@yii2shop', __DIR__);
+        Yii::setAlias('@diinshop', __DIR__);
 
         self::registerTranslations();
     }
@@ -61,5 +91,33 @@ class Module extends \yii\base\Module
     public function getBreadcrumbsView(): ?string
     {
         return $this->breadcrumbsView;
+    }
+
+    public function getApiClient(): ShopApiClientInterface
+    {
+        return Yii::$app->get($this->apiClientComponent);
+    }
+
+    public function getLogger(): ShopLoggerInterface
+    {
+        if ($this->loggerComponent !== null) {
+            return Yii::$app->get($this->loggerComponent);
+        }
+
+        $component = Yii::$app->get('logtail', false);
+        if (is_object($component)) {
+            return new YiiComponentShopLogger($component);
+        }
+
+        return new NullShopLogger();
+    }
+
+    public function getSessionContext(): ShopSessionContextInterface
+    {
+        if ($this->sessionContextComponent !== null) {
+            return Yii::$app->get($this->sessionContextComponent);
+        }
+
+        return new DefaultShopSessionContext();
     }
 }

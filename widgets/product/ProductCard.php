@@ -1,7 +1,8 @@
 <?php
 
-namespace DiinCompany\Yii2Shop\widgets\product;
+namespace diincompany\shop\widgets\product;
 
+use diincompany\shop\Module as ShopModule;
 use Yii;
 use yii\base\Widget;
 
@@ -20,6 +21,7 @@ class ProductCard extends Widget
     public function init(): void
     {
         parent::init();
+        ShopModule::registerTranslations();
 
         $this->product = is_array($this->product) ? $this->product : [];
 

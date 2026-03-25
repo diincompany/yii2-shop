@@ -1,6 +1,7 @@
 <?php
-namespace DiinCompany\Yii2Shop\widgets;
+namespace diincompany\shop\widgets;
 
+use diincompany\shop\Module as ShopModule;
 use Yii;
 use yii\base\Widget;
 use yii\helpers\Html;
@@ -17,6 +18,7 @@ class AddToCartButton extends Widget
 
     public function init() {
         parent::init();
+        ShopModule::registerTranslations();
 
         $this->params = $this->params ?: [];
     }

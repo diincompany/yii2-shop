@@ -1,5 +1,5 @@
 <?php
-namespace DiinCompany\Yii2Shop\components;
+namespace diincompany\shop\components;
 
 use Ramsey\Uuid\Uuid;
 use Yii;

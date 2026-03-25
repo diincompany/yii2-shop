@@ -1,9 +1,9 @@
 <?php
 
-namespace DiinCompany\Yii2Shop\services;
+namespace diincompany\shop\services;
 
-use DiinCompany\Yii2Shop\components\SessionId;
-use DiinCompany\Yii2Shop\contracts\ShopSessionContextInterface;
+use diincompany\shop\components\SessionId;
+use diincompany\shop\contracts\ShopSessionContextInterface;
 
 class DefaultShopSessionContext implements ShopSessionContextInterface
 {

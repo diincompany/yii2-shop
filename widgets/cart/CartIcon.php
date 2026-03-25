@@ -1,7 +1,7 @@
 <?php
-namespace DiinCompany\Yii2Shop\widgets\cart;
+namespace diincompany\shop\widgets\cart;
 
-use DiinCompany\Yii2Shop\Module as ShopModule;
+use diincompany\shop\Module as ShopModule;
 use yii\base\Widget;
 
 class CartIcon extends Widget

@@ -1,11 +1,11 @@
 <?php
 
-namespace DiinCompany\Yii2Shop\services;
+namespace diincompany\shop\services;
 
-use DiinCompany\Yii2Shop\contracts\ShopApiClientInterface;
-use DiinCompany\Yii2Shop\contracts\ShopLoggerInterface;
-use DiinCompany\Yii2Shop\contracts\ShopSessionContextInterface;
-use DiinCompany\Yii2Shop\Module as ShopModule;
+use diincompany\shop\contracts\ShopApiClientInterface;
+use diincompany\shop\contracts\ShopLoggerInterface;
+use diincompany\shop\contracts\ShopSessionContextInterface;
+use diincompany\shop\Module as ShopModule;
 use Yii;
 use yii\base\InvalidConfigException;
 

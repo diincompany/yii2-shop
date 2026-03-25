@@ -32,7 +32,7 @@ For private repository usage:
 ```php
 'modules' => [
     'shop' => [
-        'class' => DiinCompany\Yii2Shop\Module::class,
+        'class' => diincompany\shop\Module::class,
         // Optional host overrides
         // 'layout' => '@app/views/layouts/page',
         // 'breadcrumbsView' => '@app/views/layouts/includes/breadcrumbs',

@@ -1,5 +1,5 @@
 <?php
-namespace DiinCompany\Yii2Shop\widgets\search;
+namespace diincompany\shop\widgets\search;
 
 use yii\base\Widget;
 

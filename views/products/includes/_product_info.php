@@ -1,6 +1,6 @@
 <?php
 
-use DiinCompany\Yii2Shop\widgets\AddToCartButton;
+use diincompany\shop\widgets\AddToCartButton;
 use yii\helpers\Html;
 use yii\helpers\Url;
 
