@@ -12,7 +12,11 @@ use yii\helpers\Url;
 /* @var $currentSort string */
 
 $pageTitle = $category ? $category['name'] : Yii::t('shop', 'All Products');
-$moduleRoute = '/' . trim((string) (Yii::$app->controller->module->id ?? 'shop'), '/');
+$moduleId = trim((string) (Yii::$app->controller->module->id ?? ''), '/');
+if ($moduleId === '' || $moduleId === Yii::$app->id) {
+    $moduleId = 'shop';
+}
+$moduleRoute = '/' . $moduleId;
 
 $this->title = $pageTitle;
 $this->params['breadcrumbs'][] = ['label' => Yii::t('shop', 'Shop'), 'url' => [$moduleRoute]];

@@ -143,7 +143,7 @@ class AddToCartButton extends Widget
             $moduleId = Yii::$app->controller->module->id;
         }
 
-        if (is_string($moduleId) && $moduleId !== '') {
+        if (is_string($moduleId) && $moduleId !== '' && $moduleId !== Yii::$app->id) {
             return '/' . trim($moduleId, '/');
         }
 
