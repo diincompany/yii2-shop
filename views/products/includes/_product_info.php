@@ -20,7 +20,11 @@ use yii\helpers\Url;
  * @var int $selectedStock
  */
 
-$moduleRoute = '/' . trim((string) (Yii::$app->controller->module->id ?? 'shop'), '/');
+$moduleId = trim((string) (Yii::$app->controller->module->id ?? ''), '/');
+if ($moduleId === '' || $moduleId === Yii::$app->id) {
+    $moduleId = 'shop';
+}
+$moduleRoute = '/' . $moduleId;
 ?>
 
 <div class="col-lg-6 ps-lg-5">

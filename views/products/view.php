@@ -4,7 +4,11 @@ use yii\helpers\Html;
 use yii\helpers\Url;
 
 $this->title = $product['name'];
-$moduleRoute = '/' . trim((string) (Yii::$app->controller->module->id ?? 'shop'), '/');
+$moduleId = trim((string) (Yii::$app->controller->module->id ?? ''), '/');
+if ($moduleId === '' || $moduleId === Yii::$app->id) {
+    $moduleId = 'shop';
+}
+$moduleRoute = '/' . $moduleId;
 
 $this->params['breadcrumbs'][] = ['label' => Yii::t('shop','Tienda'), 'url' => [$moduleRoute]];
 $this->params['breadcrumbs'][] = ['label' => $product['category'] ? $product['category']['name'] : null, 'url' => $product['category'] ? [$moduleRoute . '/category/' . $product['category']['slug']] : null];

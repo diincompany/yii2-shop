@@ -9,7 +9,11 @@ use yii\helpers\Url;
  * @var string $detailsLabel
  */
 
-$moduleRoute = '/' . trim((string) (Yii::$app->controller->module->id ?? 'shop'), '/');
+$moduleId = trim((string) (Yii::$app->controller->module->id ?? ''), '/');
+if ($moduleId === '' || $moduleId === Yii::$app->id) {
+    $moduleId = 'shop';
+}
+$moduleRoute = '/' . $moduleId;
 ?>
 
 <div class="product-card-8">

@@ -5,7 +5,11 @@ use yii\helpers\Url;
 /* @var $category array|null */
 /* @var $categories array */
 
-$moduleRoute = '/' . trim((string) (Yii::$app->controller->module->id ?? 'shop'), '/');
+$moduleId = trim((string) (Yii::$app->controller->module->id ?? ''), '/');
+if ($moduleId === '' || $moduleId === Yii::$app->id) {
+    $moduleId = 'shop';
+}
+$moduleRoute = '/' . $moduleId;
 ?>
 
 <!-- Categories Filter -->
