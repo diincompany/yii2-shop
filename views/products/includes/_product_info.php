@@ -110,15 +110,10 @@ $moduleRoute = '/' . $moduleId;
                 <?= AddToCartButton::widget([
                     'productId' => $product['id'],
                     'buttonClass' => 'btn btn-mode me-3 add-to-cart-btn',
+                    'disabled' => !$isProductAvailable,
                 ]) ?>
             </div>
         </div>
-
-        <?php if (!$isProductAvailable): ?>
-            <?php
-            $this->registerJs("document.addEventListener('DOMContentLoaded', function () { var btn = document.querySelector('.add-to-cart-btn'); if (btn) { btn.setAttribute('disabled', 'disabled'); } });");
-            ?>
-        <?php endif; ?>
 
         <div class="pt-3 border-top mt-3 small">
             <p class="theme-link mb-2">

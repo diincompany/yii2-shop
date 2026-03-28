@@ -15,6 +15,7 @@ class AddToCartButton extends Widget
     public $quantity = 1;
     public $buttonClass = 'btn btn-mode me-3';
     public $buttonLabel = null;
+    public $disabled = false;
 
     public function init() {
         parent::init();
@@ -34,14 +35,20 @@ class AddToCartButton extends Widget
         $buttonLabel = $this->buttonLabel ?? Yii::t('shop', 'Agregar al carrito');
         
         $buttonContent = $buttonLabel;
-        
-        $content = Html::button($buttonContent, [
+
+        $htmlOptions = [
             'class' => $this->buttonClass,
             'id' => $buttonId,
             'data-product-id' => $this->productId,
             'data-quantity' => $this->quantity,
             'type' => 'button',
-        ]);
+        ];
+
+        if ($this->disabled) {
+            $htmlOptions['disabled'] = true;
+        }
+
+        $content = Html::button($buttonContent, $htmlOptions);
 
         $this->registerClientScript($buttonId);
 

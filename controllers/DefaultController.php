@@ -7,11 +7,11 @@ use diincompany\shop\contracts\ShopLoggerInterface;
 use diincompany\shop\contracts\ShopSessionContextInterface;
 use diincompany\shop\Module as ShopModule;
 use Yii;
+use yii\helpers\Json;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\web\Response;
 use yii\web\ServerErrorHttpException;
-use yii\helpers\VarDumper;
 
 /**
  * Default controller for the `store` module
@@ -176,6 +176,96 @@ class DefaultController extends Controller
     }
 
     /**
+     * Mask sensitive values before they reach persistent logs.
+     *
+     * @param mixed $value
+     * @return mixed
+     */
+    private function redactSensitiveData($value)
+    {
+        if (!is_array($value)) {
+            return $value;
+        }
+
+        $sensitiveKeys = [
+            'address_1',
+            'address_2',
+            'all_post_data',
+            'auth_code',
+            'authorization',
+            'billing_address',
+            'card',
+            'card_last_four',
+            'comment',
+            'cookie',
+            'customer',
+            'email',
+            'first_name',
+            'full_name',
+            'gateway_reference',
+            'last_name',
+            'notes',
+            'order_data',
+            'payload',
+            'payment',
+            'phone',
+            'phone_number',
+            'raw_payload',
+            'reference',
+            'shipping_address',
+            'token',
+            'transaction_id',
+            'zipcode',
+        ];
+
+        $redacted = [];
+        foreach ($value as $key => $item) {
+            $normalizedKey = strtolower((string) $key);
+
+            if (in_array($normalizedKey, $sensitiveKeys, true)) {
+                $redacted[$key] = '[redacted]';
+                continue;
+            }
+
+            $redacted[$key] = is_array($item) ? $this->redactSensitiveData($item) : $item;
+        }
+
+        return $redacted;
+    }
+
+    private function getWebhookSecret(): string
+    {
+        return trim((string) ($_ENV['DIINPAY_WEBHOOK_SECRET'] ?? ''));
+    }
+
+    private function verifyWebhookSignature(array $payload, ?string $signature): bool
+    {
+        $secret = $this->getWebhookSecret();
+
+        if ($secret === '') {
+            return defined('YII_ENV_DEV') && YII_ENV_DEV;
+        }
+
+        if ($signature === null || trim($signature) === '') {
+            return false;
+        }
+
+        $payloadJson = Json::encode($payload);
+        if (!is_string($payloadJson)) {
+            return false;
+        }
+
+        $expectedSignature = hash_hmac('sha256', $payloadJson, $secret);
+        $providedSignature = trim($signature);
+
+        if (stripos($providedSignature, 'sha256=') === 0) {
+            $providedSignature = substr($providedSignature, 7);
+        }
+
+        return hash_equals($expectedSignature, $providedSignature);
+    }
+
+    /**
      * Get current cart for session using allowed statuses.
      *
      * @param ShopApiClientInterface $diinApi
@@ -242,18 +332,6 @@ class DefaultController extends Controller
         }
 
         return [];
-    }
-
-    /**
-     * Disable CSRF validation for specific actions
-     */
-    public function beforeAction($action)
-    {
-        // Disable CSRF validation for AJAX endpoints
-        if (in_array($action->id, ['calculate-shipping', 'get-shipping-options'])) {
-            $this->enableCsrfValidation = false;
-        }
-        return parent::beforeAction($action);
     }
 
     /**
@@ -580,7 +658,7 @@ class DefaultController extends Controller
 
             $this->logger()->info('Processing checkout', [
                 'use_different_billing' => (bool) $useDifferentBilling,
-                'order_data' => $orderData,
+                'order_data' => $this->redactSensitiveData($orderData),
             ]);
 
             // Update order
@@ -607,8 +685,8 @@ class DefaultController extends Controller
 
                 $this->logger()->info('Shipping address enforced after checkout', [
                     'order_id' => $orderId,
-                    'shipping_patch_payload' => $shippingPatchPayload,
-                    'shipping_update_response' => $shippingUpdateResponse,
+                    'shipping_patch_payload' => $this->redactSensitiveData($shippingPatchPayload),
+                    'shipping_update_response' => $this->redactSensitiveData($shippingUpdateResponse),
                 ]);
 
                 if (!isset($shippingUpdateResponse['data'])) {
@@ -640,7 +718,7 @@ class DefaultController extends Controller
                 $this->logger()->info('Order updated successfully', [
                     'order_id' => $orderResponse['data']['id'] ?? null,
                     'order_hash' => $orderHash,
-                    'order_data' => $orderResponse['data']
+                    'order_data' => $this->redactSensitiveData($orderResponse['data'])
                 ]);
                 
                 // Build URLs for diinpay-app
@@ -969,16 +1047,22 @@ class DefaultController extends Controller
         try {
             // Get webhook payload
             $payload = Yii::$app->request->post();
-            
-            $this->logger()->info('Payment webhook received', [
-                'payload' => $payload,
-            ]);
+            $signature = Yii::$app->request->headers->get('X-Webhook-Signature');
 
-            // Verify webhook signature (if implemented)
-            // $signature = Yii::$app->request->headers->get('X-Webhook-Signature');
-            // if (!$this->verifyWebhookSignature($payload, $signature)) {
-            //     return ['success' => false, 'message' => 'Invalid signature'];
-            // }
+            if (!$this->verifyWebhookSignature($payload, $signature)) {
+                $this->logger()->warning('Rejected payment webhook due to invalid signature', [
+                    'payload' => $this->redactSensitiveData($payload),
+                ]);
+
+                return [
+                    'success' => false,
+                    'message' => 'Invalid webhook signature',
+                ];
+            }
+
+            $this->logger()->info('Payment webhook received', [
+                'payload' => $this->redactSensitiveData($payload),
+            ]);
 
             // Extract order hash from payload
             $orderHash = $payload['order_hash'] ?? $payload['hash'] ?? null;
@@ -987,7 +1071,7 @@ class DefaultController extends Controller
 
             if (!$orderHash || !$orderId) {
                 $this->logger()->error('Invalid webhook payload - missing order_hash or order_id', [
-                    'payload' => $payload,
+                    'payload' => $this->redactSensitiveData($payload),
                 ]);
 
                 return [
@@ -1198,6 +1282,10 @@ class DefaultController extends Controller
      */
     public function actionDebug()
     {
+        if (!(defined('YII_ENV_DEV') && YII_ENV_DEV)) {
+            throw new NotFoundHttpException('The requested page does not exist.');
+        }
+
         Yii::$app->response->format = Response::FORMAT_JSON;
         
         return [
@@ -1297,8 +1385,8 @@ class DefaultController extends Controller
             $this->logger()->info('Calculate shipping - Request', [
                 'cart_id' => $cartId,
                 'service_level' => $serviceLevel,
-                'shipping_address' => $shippingAddress,
-                'all_post_data' => $request->post(),
+                'shipping_address' => $this->redactSensitiveData($shippingAddress),
+                'all_post_data' => $this->redactSensitiveData($request->post()),
             ]);
 
             // Build payload for POST /shipping/quote (only location IDs, no address fields)
@@ -1315,7 +1403,7 @@ class DefaultController extends Controller
             $shippingResponse = $diinApi->calculateShippingQuote($cartId, $quotePayload);
 
             $this->logger()->info('Calculate shipping - Quote Response', [
-                'shipping_response' => $shippingResponse,
+                'shipping_response' => $this->redactSensitiveData($shippingResponse),
             ]);
 
             if (!isset($shippingResponse['data'])) {
@@ -1335,8 +1423,8 @@ class DefaultController extends Controller
             $updateResponse = $diinApi->updateOrderShipping($cartId, $patchPayload);
 
             $this->logger()->info('Update shipping - Response', [
-                'update_response' => $updateResponse,
-                'patch_payload' => $patchPayload,
+                'update_response' => $this->redactSensitiveData($updateResponse),
+                'patch_payload' => $this->redactSensitiveData($patchPayload),
             ]);
 
             if (!isset($updateResponse['data'])) {
@@ -1420,7 +1508,7 @@ class DefaultController extends Controller
 
             $this->logger()->info('Get shipping options - Request', [
                 'cart_id' => $cartId,
-                'shipping_address' => $shippingAddress,
+                'shipping_address' => $this->redactSensitiveData($shippingAddress),
             ]);
 
             // Call API to get shipping options
@@ -1429,7 +1517,7 @@ class DefaultController extends Controller
             ]);
 
             $this->logger()->info('Get shipping options - Response', [
-                'options_response' => $optionsResponse,
+                'options_response' => $this->redactSensitiveData($optionsResponse),
                 'options_array' => isset($optionsResponse['data']['options']) ? $optionsResponse['data']['options'] : 'NO OPTIONS',
                 'options_count' => isset($optionsResponse['data']['options']) ? count($optionsResponse['data']['options']) : 0,
             ]);
@@ -1496,4 +1584,3 @@ class DefaultController extends Controller
         }
     }
 }
-
