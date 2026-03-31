@@ -12,7 +12,7 @@ use yii\helpers\Html;
         class="form-control"
         type="text"
         name="<?= Html::encode($inputName) ?>"
-        placeholder="<?= Html::encode(Yii::t('shop', $placeholder)) ?>"
+        placeholder="<?= Html::encode($placeholder) ?>"
         value="<?= Html::encode($keyword) ?>"
     >
     <button type="button" class="btn shadow-none">
