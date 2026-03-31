@@ -34,6 +34,8 @@ interface ShopApiClientInterface
 
     public function getOrder(array $payload);
 
+    public function findOrderByNumberAndEmail(string $orderNumber, string $email);
+
     public function getOrderByHash(string $hash);
 
     public function getOrderById(int $orderId);

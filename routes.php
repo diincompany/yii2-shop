@@ -7,6 +7,7 @@ return [
     'shop' => 'shop/products/index',
     'shop/cart' => 'shop/default/cart',
     'shop/checkout' => 'shop/default/checkout',
+    'shop/order-status' => 'shop/default/order-status',
     'shop/confirmation/<hash>/pdf' => 'shop/default/confirmation-pdf',
     'shop/confirmation/<hash>' => 'shop/default/confirmation',
     'shop/get-states' => 'shop/default/get-states',
