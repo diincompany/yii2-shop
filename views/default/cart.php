@@ -5,6 +5,7 @@
  * @var array $items
  * @var float $subtotal
  * @var float $taxes
+ * @var float $shippingAmount
  * @var float $discountAmount
  * @var float $grandTotal
  * @var string $couponCode
@@ -264,9 +265,13 @@ $moduleRoute = '/' . trim((string) ($module->id ?? 'shop'), '/');
                                     <h6 class="me-2 text-body"><?= Yii::t('shop', 'subtotal') ?></h6>
                                     <span class="text-end" id="cart-subtotal">L<?= Yii::$app->formatter->asDecimal($subtotal, 2) ?></span>
                                 </li>
-                                <li class="d-flex justify-content-between align-items-center mb-2">
+                                <li class="d-flex justify-content-between align-items-center mb-2" id="cart-taxes-row"<?= $taxes > 0 ? '' : ' style="display:none;"' ?>>
                                     <h6 class="me-2 text-body"><?= Yii::t('shop', 'taxes') ?></h6>
                                     <span class="text-end" id="cart-taxes">L<?= Yii::$app->formatter->asDecimal($taxes, 2) ?></span>
+                                </li>
+                                <li class="d-flex justify-content-between align-items-center mb-2" id="cart-shipping-row"<?= $shippingAmount > 0 ? '' : ' style="display:none;"' ?>>
+                                    <h6 class="me-2 text-body"><?= Yii::t('shop', 'shipping') ?></h6>
+                                    <span class="text-end" id="cart-shipping">L<?= Yii::$app->formatter->asDecimal($shippingAmount, 2) ?></span>
                                 </li>
                                 <li class="d-flex justify-content-between align-items-center mb-2">
                                     <h6 class="me-2 text-body" id="cart-discount-label">
@@ -528,11 +533,17 @@ $(document).ready(function() {
         }
 
         var normalized = cartData.order || cartData;
+        var taxes = parseFloat(normalized.tax_amount || 0);
+        var shipping = parseFloat(normalized.shipping_amount || ((normalized.shipping && normalized.shipping.shipping_cost) || 0) || 0);
         var discount = parseFloat(normalized.discount_amount || 0);
         var couponCode = (normalized.coupon_code || (normalized.coupon && normalized.coupon.code) || '').toString().trim();
         var discountLabel = couponCode ? $discountTextJson + ' (' + couponCode + ')' : $discountTextJson;
+
         $('#cart-subtotal').text('L' + formatPrice(normalized.subtotal_amount || 0));
-        $('#cart-taxes').text('L' + formatPrice(normalized.tax_amount || 0));
+        $('#cart-taxes').text('L' + formatPrice(taxes));
+        $('#cart-taxes-row').toggle(taxes > 0);
+        $('#cart-shipping').text('L' + formatPrice(shipping));
+        $('#cart-shipping-row').toggle(shipping > 0);
         $('#cart-discount-label').text(discountLabel);
         $('#cart-discount').text((discount > 0 ? '-L' : 'L') + formatPrice(Math.abs(discount)));
         $('#cart-grand-total').text('L' + formatPrice(normalized.total_amount || 0));

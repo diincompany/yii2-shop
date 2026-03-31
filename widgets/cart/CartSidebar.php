@@ -44,6 +44,7 @@ class CartSidebar extends Widget
             'Variant' => Yii::t('shop', 'Variant'),
             'Remove' => Yii::t('shop', 'Remove'),
             'Subtotal' => Yii::t('shop', 'Subtotal'),
+            'shipping' => Yii::t('shop', 'shipping'),
             'Taxes' => Yii::t('shop', 'Taxes'),
             'Total' => Yii::t('shop', 'Total'),
             'View Cart' => Yii::t('shop', 'View Cart'),

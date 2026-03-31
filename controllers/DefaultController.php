@@ -286,6 +286,7 @@ class DefaultController extends Controller
             $items = $cart['items'] ?? [];
             $subtotal = (float) ($cart['subtotal_amount'] ?? 0);
             $taxes = (float) ($cart['tax_amount'] ?? 0);
+            $shippingAmount = (float) ($cart['shipping_amount'] ?? ($cart['shipping']['shipping_cost'] ?? 0));
             $discountAmount = (float) ($cart['discount_amount'] ?? 0);
             $grandTotal = (float) ($cart['total_amount'] ?? 0);
             $couponCode = (string) ($cart['coupon_code'] ?? ($cart['coupon']['code'] ?? ''));
@@ -294,6 +295,7 @@ class DefaultController extends Controller
                 'items' => $items,
                 'subtotal' => $subtotal,
                 'taxes' => $taxes,
+                'shippingAmount' => $shippingAmount,
                 'discountAmount' => $discountAmount,
                 'grandTotal' => $grandTotal,
                 'couponCode' => $couponCode,
@@ -308,6 +310,7 @@ class DefaultController extends Controller
                 'items' => [],
                 'subtotal' => 0,
                 'taxes' => 0,
+                'shippingAmount' => 0,
                 'discountAmount' => 0,
                 'grandTotal' => 0,
                 'couponCode' => '',
