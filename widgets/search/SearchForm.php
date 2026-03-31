@@ -1,6 +1,7 @@
 <?php
 namespace diincompany\shop\widgets\search;
 
+use Yii;
 use yii\base\Widget;
 
 class SearchForm extends Widget
@@ -14,7 +15,7 @@ class SearchForm extends Widget
     public function run(): string
     {
         return $this->render('search-form', [
-            'placeholder' => $this->placeholder,
+            'placeholder' => Yii::t('shop', $this->placeholder),
             'inputName' => $this->inputName,
             'formMethod' => $this->formMethod,
             'formAction' => $this->formAction,

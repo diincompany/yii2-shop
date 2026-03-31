@@ -208,4 +208,5 @@ return array (
   'You will receive a confirmation email shortly' => 'Recibirás un correo de confirmación pronto',
   'zip_code' => 'Código Postal',
   '{n} products' => '{n} productos',
+  'What are you looking for?' => '¿Qué estás buscando?',
 );
