@@ -720,6 +720,17 @@ class DiinApi extends Component implements ShopApiClientInterface
     }
 
     /**
+     * Find an order using the exact lookup pair required by the API.
+     */
+    public function findOrderByNumberAndEmail(string $orderNumber, string $email)
+    {
+        return $this->getOrder([
+            'order_number' => trim($orderNumber),
+            'email' => trim($email),
+        ]);
+    }
+
+    /**
      * Get order by hash (used for payment confirmation)
      * @param string $hash Order hash
      * @return array

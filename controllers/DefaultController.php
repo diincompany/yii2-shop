@@ -743,6 +743,60 @@ class DefaultController extends Controller
     }
 
     /**
+     * Customer order status lookup by order number + email.
+     */
+    public function actionOrderStatus()
+    {
+        $request = Yii::$app->request;
+        $order = null;
+        $lookupError = null;
+        $lookupSubmitted = false;
+        $orderNumber = '';
+        $email = '';
+
+        if ($request->isPost) {
+            $lookupSubmitted = true;
+            $orderNumber = trim((string) $request->post('order_number', ''));
+            $email = strtolower(trim((string) $request->post('email', '')));
+        } elseif ($request->get('order_number') !== null || $request->get('email') !== null) {
+            $lookupSubmitted = true;
+            $orderNumber = trim((string) $request->get('order_number', ''));
+            $email = strtolower(trim((string) $request->get('email', '')));
+        }
+
+        if ($lookupSubmitted) {
+            if ($orderNumber === '' || $email === '') {
+                $lookupError = Yii::t('shop', 'Both order number and email are required.');
+            } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $lookupError = Yii::t('shop', 'Please enter a valid email address.');
+            } else {
+                $response = $this->apiClient()->findOrderByNumberAndEmail($orderNumber, $email);
+
+                if (isset($response['data']) && is_array($response['data'])) {
+                    $order = $response['data'];
+                } else {
+                    $lookupError = $this->getSafeApiMessage($response, 'order_lookup_not_found');
+
+                    $this->logger()->warning('Order status lookup failed', [
+                        'order_number' => $orderNumber,
+                        'email_hash' => hash('sha256', $email),
+                        'response_status' => $response['status'] ?? null,
+                        'response_message' => $response['message'] ?? null,
+                    ]);
+                }
+            }
+        }
+
+        return $this->render('order-status', [
+            'order' => $order,
+            'lookupError' => $lookupError,
+            'lookupSubmitted' => $lookupSubmitted,
+            'orderNumber' => $orderNumber,
+            'email' => $email,
+        ]);
+    }
+
+    /**
      * Export confirmation order data as PDF.
      *
      * @param string $hash
