@@ -179,20 +179,41 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const subtotal = parseFloat(cartData.subtotal_amount || 0);
+        const shipping = parseFloat(cartData.shipping_amount || ((cartData.shipping && cartData.shipping.shipping_cost) || 0) || 0);
         const taxes = parseFloat(cartData.tax_amount || 0);
         const total = parseFloat(cartData.total_amount || 0);
         const items = Array.isArray(cartData.items) ? cartData.items : [];
         const totalQuantity = getTotalItemsQuantity(items);
-        
-        // Update DOM
-        const subtotalElements = document.querySelectorAll('.offcanvas-footer .row');
-        if (subtotalElements.length >= 3) {
-            // Update subtotal
-            subtotalElements[0].querySelector('.text-end span').textContent = `${currencySymbol} ${formatPrice(subtotal)}`;
-            // Update taxes
-            subtotalElements[1].querySelector('.text-end span').textContent = `${currencySymbol} ${formatPrice(taxes)}`;
-            // Update total
-            subtotalElements[2].querySelector('.text-end span').textContent = `${currencySymbol} ${formatPrice(total)}`;
+
+        const subtotalValue = document.querySelector('.offcanvas-footer .cart-subtotal-value');
+        const shippingValue = document.querySelector('.offcanvas-footer .cart-shipping-value');
+        const taxValue = document.querySelector('.offcanvas-footer .cart-tax-value');
+        const totalValue = document.querySelector('.offcanvas-footer .cart-total-value');
+        const shippingRow = document.querySelector('.offcanvas-footer .cart-shipping-row');
+        const taxRow = document.querySelector('.offcanvas-footer .cart-tax-row');
+
+        if (subtotalValue) {
+            subtotalValue.textContent = `${currencySymbol} ${formatPrice(subtotal)}`;
+        }
+
+        if (shippingValue) {
+            shippingValue.textContent = `${currencySymbol} ${formatPrice(shipping)}`;
+        }
+
+        if (shippingRow) {
+            shippingRow.style.display = shipping > 0 ? '' : 'none';
+        }
+
+        if (taxValue) {
+            taxValue.textContent = `${currencySymbol} ${formatPrice(taxes)}`;
+        }
+
+        if (taxRow) {
+            taxRow.style.display = taxes > 0 ? '' : 'none';
+        }
+
+        if (totalValue) {
+            totalValue.textContent = `${currencySymbol} ${formatPrice(total)}`;
         }
         
         // Update badge with total quantity from API
@@ -204,7 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
             cartTitle.textContent = `${t('Your Cart', 'Tu Carrito')} (${totalQuantity})`;
         }
         
-        console.log('Totals updated:', { subtotal, taxes, total });
+        console.log('Totals updated:', { subtotal, shipping, taxes, total });
     }
     
     /**
@@ -533,29 +554,46 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Rebuild footer completely
         if (offcanvasFooter) {
+            const shippingAmount = parseFloat(cartData.shipping_amount || ((cartData.shipping && cartData.shipping.shipping_cost) || 0) || 0);
+            const taxesAmount = parseFloat(cartData.tax_amount || 0);
+            const shippingRowHtml = shippingAmount > 0 ? `
+                <div class="row g-0 py-2 cart-shipping-row">
+                    <div class="col-8">
+                        <span class="text-mode">${t('shipping', 'Envio')}:</span>
+                    </div>
+                    <div class="col-4 text-end">
+                        <span class="ml-auto cart-shipping-value">${currencySymbol} ${formatPrice(shippingAmount)}</span>
+                    </div>
+                </div>
+            ` : '';
+            const taxRowHtml = taxesAmount > 0 ? `
+                <div class="row g-0 py-2 cart-tax-row">
+                    <div class="col-8">
+                        <span class="text-mode">${t('Taxes', 'Impuestos')}:</span>
+                    </div>
+                    <div class="col-4 text-end">
+                        <span class="ml-auto cart-tax-value">${currencySymbol} ${formatPrice(taxesAmount)}</span>
+                    </div>
+                </div>
+            ` : '';
+
             offcanvasFooter.innerHTML = `
                 <div class="row g-0 py-2">
                     <div class="col-8">
                         <span class="text-mode">${t('Subtotal', 'Subtotal')}</span>
                     </div>
                     <div class="col-4 text-end">
-                        <span class="ml-auto">${currencySymbol} ${formatPrice(cartData.subtotal_amount || 0)}</span>
+                        <span class="ml-auto cart-subtotal-value">${currencySymbol} ${formatPrice(cartData.subtotal_amount || 0)}</span>
                     </div>
                 </div>
-                <div class="row g-0 py-2">
-                    <div class="col-8">
-                        <span class="text-mode">${t('Taxes', 'Impuestos')}:</span>
-                    </div>
-                    <div class="col-4 text-end">
-                        <span class="ml-auto">${currencySymbol} ${formatPrice(cartData.tax_amount || 0)}</span>
-                    </div>
-                </div>
+                ${shippingRowHtml}
+                ${taxRowHtml}
                 <div class="row g-0 pt-2 mt-2 border-top fw-bold text-mode">
                     <div class="col-8">
                         <span class="text-mode">${t('Total', 'Total')}</span>
                     </div>
                     <div class="col-4 text-end">
-                        <span class="ml-auto">${currencySymbol} ${formatPrice(cartData.total_amount || 0)}</span>
+                        <span class="ml-auto cart-total-value">${currencySymbol} ${formatPrice(cartData.total_amount || 0)}</span>
                     </div>
                 </div>
                 <div class="pt-4">

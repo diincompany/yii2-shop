@@ -2,6 +2,8 @@
 use yii\helpers\Html;
 
 $cartUrl = Yii::$app->urlManager->createUrl(["/{$moduleId}/cart"]);
+$shippingAmount = (float) ($cartItems['shipping_amount'] ?? ($cartItems['shipping']['shipping_cost'] ?? 0));
+$taxAmount = (float) ($cartItems['tax_amount'] ?? 0);
 ?>
 <div class="offcanvas offcanvas-end" tabindex="-1" id="modalMiniCart" aria-labelledby="modalMiniCartLabel">
     <div class="offcanvas-header border-bottom">
@@ -197,15 +199,23 @@ $cartUrl = Yii::$app->urlManager->createUrl(["/{$moduleId}/cart"]);
                     <span class="text-mode"><?= Yii::t('shop', 'Subtotal') ?></span>
                 </div>
                 <div class="col-4 text-end">
-                    <span class="ml-auto"><?= Html::encode($currencySymbol) ?> <?= number_format($cartItems['subtotal_amount'], 2) ?></span>
+                    <span class="ml-auto cart-subtotal-value"><?= Html::encode($currencySymbol) ?> <?= number_format($cartItems['subtotal_amount'], 2) ?></span>
                 </div>
             </div>
-            <div class="row g-0 py-2">
+            <div class="row g-0 py-2 cart-shipping-row"<?= $shippingAmount > 0 ? '' : ' style="display:none;"' ?>>
+                <div class="col-8">
+                    <span class="text-mode"><?= Yii::t('shop', 'shipping') ?>:</span>
+                </div>
+                <div class="col-4 text-end">
+                    <span class="ml-auto cart-shipping-value"><?= Html::encode($currencySymbol) ?> <?= number_format($shippingAmount, 2) ?></span>
+                </div>
+            </div>
+            <div class="row g-0 py-2 cart-tax-row"<?= $taxAmount > 0 ? '' : ' style="display:none;"' ?>>
                 <div class="col-8">
                     <span class="text-mode"><?= Yii::t('shop', 'Taxes') ?>:</span>
                 </div>
                 <div class="col-4 text-end">
-                    <span class="ml-auto"><?= Html::encode($currencySymbol) ?> <?= number_format($cartItems['tax_amount'], 2) ?></span>
+                    <span class="ml-auto cart-tax-value"><?= Html::encode($currencySymbol) ?> <?= number_format($taxAmount, 2) ?></span>
                 </div>
             </div>
             <div class="row g-0 pt-2 mt-2 border-top fw-bold text-mode">
@@ -213,7 +223,7 @@ $cartUrl = Yii::$app->urlManager->createUrl(["/{$moduleId}/cart"]);
                     <span class="text-mode"><?= Yii::t('shop', 'Total') ?></span>
                 </div>
                 <div class="col-4 text-end">
-                    <span class="ml-auto"><?= Html::encode($currencySymbol) ?> <?= number_format($cartItems['total_amount'], 2) ?></span>
+                    <span class="ml-auto cart-total-value"><?= Html::encode($currencySymbol) ?> <?= number_format($cartItems['total_amount'], 2) ?></span>
                 </div>
             </div>
             <div class="pt-4">
