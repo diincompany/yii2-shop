@@ -78,6 +78,9 @@ $this->params['breadcrumbs'][] = $this->title;
 
 <?php if (empty($error) && !empty($items)): ?>
 <?php
+$this->registerCssFile('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+$this->registerJsFile('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', ['position' => \yii\web\View::POS_HEAD]);
+
 // Register custom JS for checkout functionality
 $processCheckoutUrl = Url::to([$moduleRoute . '/default/process-checkout']);
 $removeItemUrl = Url::to([$moduleRoute . '/cart/remove-item']);
@@ -93,7 +96,9 @@ $daysTextJson = json_encode(Yii::t('shop', 'days'));
 $discountTextJson = json_encode(Yii::t('shop', 'Discount'));
 $noShippingOptionsFallbackTextJson = json_encode(Yii::t('shop', 'shipping_options_unavailable_fallback'));
 $initialServiceLevelJson = json_encode((string) ($shippingServiceLevel ?? ''));
+$initialProviderCodeJson = json_encode((string) (($persistedShipping['provider_code'] ?? '')));
 $initialShippingOptionJson = json_encode((array) ($persistedShipping ?? []));
+$initialSelectedOptionJson = json_encode((array) (($persistedShipping['selected_option'] ?? [])));
 
 $this->registerJs(<<<JS
     jQuery(function($) {
@@ -106,8 +111,15 @@ $this->registerJs(<<<JS
         var daysText = $daysTextJson;
         var discountText = $discountTextJson;
         var noShippingOptionsFallbackText = $noShippingOptionsFallbackTextJson;
+        var uiLang = (($('html').attr('lang') || 'es').toString().toLowerCase().indexOf('en') === 0) ? 'en' : 'es';
         var initialServiceLevel = ($initialServiceLevelJson || '').toString().trim();
+        var initialProviderCode = ($initialProviderCodeJson || '').toString().trim();
         var initialShippingOption = $initialShippingOptionJson || {};
+        var initialSelectedOption = $initialSelectedOptionJson || {};
+
+        if (initialSelectedOption && Object.keys(initialSelectedOption).length > 0) {
+            $('[name="selected_option"]').val(JSON.stringify(initialSelectedOption));
+        }
 
         function updateCheckoutTotals(order) {
             if (!order) {
@@ -159,6 +171,8 @@ $this->registerJs(<<<JS
             $('#checkout-shipping').text('L0.00');
             $('[name="shipping_cost"]').val('0');
             $('[name="service_level"]').val('');
+            $('[name="provider_code"]').val('');
+            $('[name="selected_option"]').val('');
             $('#place-order-btn').prop('disabled', false);
 
             updateGrandTotalFromSummary();
@@ -229,12 +243,37 @@ $this->registerJs(<<<JS
             getShippingOptions(countryId, stateId, cityId);
         }
 
+        function getShippingGeolocationPayload() {
+            var latitude = $('[name="shipping_latitude"]').val();
+            var longitude = $('[name="shipping_longitude"]').val();
+
+            if (!latitude || !longitude) {
+                return null;
+            }
+
+            return {
+                latitude: latitude,
+                longitude: longitude
+            };
+        }
+
         function getShippingOptions(countryId, stateId, cityId) {
+            var providerCode = ($('[name="provider_code"]').val() || '').toString().trim();
             var payload = {
                 country_id: countryId,
                 state_id: stateId,
                 city_id: cityId
             };
+
+            if (providerCode) {
+                payload.provider_code = providerCode;
+            }
+
+            var geolocation = getShippingGeolocationPayload();
+            if (geolocation) {
+                payload.latitude = geolocation.latitude;
+                payload.longitude = geolocation.longitude;
+            }
 
             if (csrfParam && csrfToken) {
                 payload[csrfParam] = csrfToken;
@@ -276,9 +315,9 @@ $this->registerJs(<<<JS
 
                     if (response.success) {
                         if (options.length > 0) {
-                            displayShippingOptions(options, data.currency);
+                            displayShippingOptions(data, options, data.currency);
                         } else if (!noShippingAvailable && initialShippingOption && initialShippingOption.service_level) {
-                            displayShippingOptions([initialShippingOption], data.currency || 'HNL');
+                            displayShippingOptions(data, [initialShippingOption], data.currency || 'HNL');
                         } else {
                             applyNoShippingFallback(response.message);
                         }
@@ -296,7 +335,17 @@ $this->registerJs(<<<JS
                 });
         }
 
-        function displayShippingOptions(options, currency) {
+        function deliveryTypeToServiceLevel(deliveryType) {
+            var normalized = (deliveryType || '').toString().toLowerCase().trim();
+
+            if (normalized === 'same-day' || normalized === 'express') {
+                return 'express';
+            }
+
+            return 'standard';
+        }
+
+        function displayShippingOptions(data, options, currency) {
             console.log('displayShippingOptions called with', options.length, 'options and currency:', currency);
             console.log('Full options data:', JSON.stringify(options, null, 2));
             
@@ -312,12 +361,67 @@ $this->registerJs(<<<JS
                 return;
             }
 
+            var providers = Array.isArray(data && data.providers) ? data.providers : [];
+            var normalizedOptions = [];
+
+            if (providers.length > 0) {
+                providers.forEach(function(providerGroup) {
+                    var providerCode = (providerGroup.provider_code || '').toString();
+                    var providerName = (providerGroup.provider_name || providerCode || 'Proveedor').toString();
+                    var providerOptions = Array.isArray(providerGroup.options) ? providerGroup.options : [];
+
+                    providerOptions.forEach(function(option) {
+                        var baseOption = $.extend({}, option, {
+                            provider_code: option.provider_code || providerCode,
+                            provider_name: option.provider_name || providerName
+                        });
+
+                        var couriers = Array.isArray(baseOption.courier_options) ? baseOption.courier_options : [];
+                        var hasCourierSelected = Boolean(baseOption.courier_id || (baseOption.selected_option && (baseOption.selected_option.id || baseOption.selected_option.courier_id)));
+
+                        if (couriers.length > 0 && !hasCourierSelected) {
+                            couriers.forEach(function(courier) {
+                                var courierCost = parseFloat(courier.client_price || courier.shipping_cost || baseOption.shipping_cost || 0);
+                                normalizedOptions.push($.extend({}, baseOption, {
+                                    service_level: deliveryTypeToServiceLevel(courier.delivery_type),
+                                    shipping_cost: courierCost,
+                                    selected_option: {
+                                        id: courier.id || null,
+                                        courier_id: courier.id || null,
+                                        name: courier.name || null,
+                                        courier_name: courier.name || null,
+                                        delivery_type: courier.delivery_type || null,
+                                        courier_delivery_type: courier.delivery_type || null,
+                                        client_price: courierCost,
+                                        shipping_cost: courierCost,
+                                        service_level: deliveryTypeToServiceLevel(courier.delivery_type)
+                                    },
+                                    courier_name: courier.name || null,
+                                    courier_delivery_type: courier.delivery_type || null
+                                }));
+                            });
+                        } else {
+                            normalizedOptions.push(baseOption);
+                        }
+                    });
+                });
+            } else {
+                normalizedOptions = options.map(function(option) {
+                    return $.extend({}, option, {
+                        provider_code: option.provider_code || 'standard',
+                        provider_name: option.provider_name || ((option.provider_code || 'standard').toString().toUpperCase())
+                    });
+                });
+            }
+
             var html = '<div class="btn-group-vertical w-100" role="group">';
             var selectedIndex = 0;
 
-            if (initialServiceLevel) {
-                var matchedIndex = options.findIndex(function(option) {
-                    return ((option.service_level || '').toString().trim() === initialServiceLevel);
+            if (initialServiceLevel || initialProviderCode) {
+                var matchedIndex = normalizedOptions.findIndex(function(option) {
+                    var levelMatch = !initialServiceLevel || ((option.service_level || '').toString().trim() === initialServiceLevel);
+                    var providerMatch = !initialProviderCode || ((option.provider_code || '').toString().trim() === initialProviderCode);
+                    return levelMatch && providerMatch;
                 });
 
                 if (matchedIndex >= 0) {
@@ -325,8 +429,9 @@ $this->registerJs(<<<JS
                 }
             }
 
-            options.forEach(function(option, index) {
+            normalizedOptions.forEach(function(option, index) {
                 console.log('Processing option ' + index + ':', {
+                    provider_code: option.provider_code,
                     service_level: option.service_level,
                     shipping_cost: option.shipping_cost,
                     free_shipping: option.free_shipping
@@ -334,15 +439,54 @@ $this->registerJs(<<<JS
                 
                 var isSelected = index === selectedIndex ? ' checked' : '';
                 var daysDisplay = '';
-                if (option.estimated_days_min && option.estimated_days_max) {
+                var providerCode = (option.provider_code || '').toString().toLowerCase().trim();
+                var shouldShowEstimatedDays = providerCode !== 'boxful';
+                if (shouldShowEstimatedDays && option.estimated_days_min && option.estimated_days_max) {
                     daysDisplay = ' (' + option.estimated_days_min + '-' + option.estimated_days_max + ' ' + daysText + ')';
                 }
                 
                 var costText = option.free_shipping ? 'Gratis' : 'L' + parseFloat(option.shipping_cost).toFixed(2);
+                var providerName = (option.provider_name || option.provider_code || 'Proveedor').toString();
+                var courierName = (option.courier_name || (option.selected_option && option.selected_option.name) || '').toString().trim();
+                var deliveryType = (option.courier_delivery_type || (option.selected_option && option.selected_option.delivery_type) || '').toString().trim();
+                var deliveryLabelEs = (option.courier_delivery_type_label_es || (option.selected_option && option.selected_option.delivery_type_label_es) || '').toString().trim();
+                var deliveryLabelEn = (option.courier_delivery_type_label_en || (option.selected_option && option.selected_option.delivery_type_label_en) || '').toString().trim();
+                var deliveryLabel = uiLang === 'en' ? (deliveryLabelEn || deliveryType) : (deliveryLabelEs || deliveryType);
+                var optionTitle = option.service_level.charAt(0).toUpperCase() + option.service_level.slice(1);
+                if (courierName) {
+                    optionTitle = courierName + (deliveryLabel ? ' (' + deliveryLabel + ')' : '');
+                }
+                var selectedPayload = {
+                    provider_code: option.provider_code || null,
+                    provider_name: option.provider_name || null,
+                    service_level: option.service_level || null,
+                    shipping_cost: option.shipping_cost || 0,
+                    shipping_rate_id: option.shipping_rate_id || null,
+                    shipping_zone_id: option.shipping_zone_id || null,
+                    warehouse_id: option.warehouse_id || null,
+                    warehouse_name: option.warehouse_name || null,
+                    selected_option: option.selected_option || {
+                        id: option.courier_id || null,
+                        courier_id: option.courier_id || null,
+                        name: courierName || null,
+                        courier_name: courierName || null,
+                        delivery_type: deliveryType || null,
+                        courier_delivery_type: deliveryType || null,
+                        delivery_type_label_es: deliveryLabelEs || null,
+                        delivery_type_label_en: deliveryLabelEn || null,
+                        client_price: option.shipping_cost || 0,
+                        shipping_cost: option.shipping_cost || 0,
+                        service_level: option.service_level || null
+                    },
+                    courier_options: option.courier_options || []
+                };
                 
-                html += '<input type="radio" class="btn-check shipping-option" name="shipping_option" value="' + option.service_level + '" id="shipping_' + index + '"' + isSelected + ' data-service-level="' + option.service_level + '" data-shipping-cost="' + option.shipping_cost + '">';
+                html += '<input type="radio" class="btn-check shipping-option" name="shipping_option" value="' + option.service_level + '" id="shipping_' + index + '"' + isSelected + ' data-provider-code="' + (option.provider_code || '') + '" data-service-level="' + option.service_level + '" data-shipping-cost="' + option.shipping_cost + '" data-selected-option=\'' + JSON.stringify(selectedPayload).replace(/'/g, '&#39;') + '\'>';
                 html += '<label class="btn btn-outline-primary w-100 text-start" for="shipping_' + index + '">';
-                html += '  ' + option.service_level.charAt(0).toUpperCase() + option.service_level.slice(1) + ' ' + daysDisplay + ' - ' + costText;
+                html += '  <div class="d-flex justify-content-between align-items-center">';
+                html += '    <span><strong>' + providerName + '</strong> - ' + optionTitle + daysDisplay + '</span>';
+                html += '    <span>' + costText + '</span>';
+                html += '  </div>';
                 html += '</label>';
             });
 
@@ -353,32 +497,54 @@ $this->registerJs(<<<JS
 
             // Bind change event to shipping options
             $(document).off('change', '.shipping-option').on('change', '.shipping-option', function() {
+                var providerCode = $(this).data('provider-code');
                 var serviceLevel = $(this).data('service-level');
                 var shippingCost = $(this).data('shipping-cost');
-                console.log('Shipping option changed to:', {serviceLevel, shippingCost});
-                selectShippingOption(serviceLevel, shippingCost);
+                var selectedOption = $(this).data('selected-option') || null;
+                console.log('Shipping option changed to:', {providerCode, serviceLevel, shippingCost, selectedOption});
+                selectShippingOption(providerCode, serviceLevel, shippingCost, selectedOption);
             });
 
             // Auto-select first option
-            if (options.length > 0) {
-                var selectedOption = options[selectedIndex] || options[0];
+            if (normalizedOptions.length > 0) {
+                var selectedOption = normalizedOptions[selectedIndex] || normalizedOptions[0];
                 console.log('Auto-selecting shipping option:', selectedOption);
-                selectShippingOption(selectedOption.service_level, selectedOption.shipping_cost);
+                selectShippingOption(
+                    selectedOption.provider_code || '',
+                    selectedOption.service_level,
+                    selectedOption.shipping_cost,
+                    {
+                        provider_code: selectedOption.provider_code || null,
+                        provider_name: selectedOption.provider_name || null,
+                        service_level: selectedOption.service_level || null,
+                        shipping_cost: selectedOption.shipping_cost || 0,
+                        shipping_rate_id: selectedOption.shipping_rate_id || null,
+                        shipping_zone_id: selectedOption.shipping_zone_id || null,
+                        warehouse_id: selectedOption.warehouse_id || null,
+                        warehouse_name: selectedOption.warehouse_name || null,
+                        selected_option: selectedOption.selected_option || null,
+                        courier_options: selectedOption.courier_options || []
+                    }
+                );
             }
 
             initialServiceLevel = '';
+            initialProviderCode = '';
         }
 
-        function selectShippingOption(serviceLevel, shippingCost) {
+        function selectShippingOption(providerCode, serviceLevel, shippingCost, selectedOptionPayload) {
             // Update the display
-            console.log('selectShippingOption called with:', {serviceLevel, shippingCost});
+            console.log('selectShippingOption called with:', {providerCode, serviceLevel, shippingCost, selectedOptionPayload});
             
             $('#checkout-shipping').text('L' + parseFloat(shippingCost).toFixed(2));
             $('[name="shipping_cost"]').val(shippingCost);
             $('[name="service_level"]').val(serviceLevel);
+            $('[name="provider_code"]').val(providerCode || '');
+            $('[name="selected_option"]').val(selectedOptionPayload ? JSON.stringify(selectedOptionPayload) : '');
 
             // Verify values were set
             console.log('Form values after update:', {
+                provider_code: $('[name="provider_code"]').val(),
                 service_level: $('[name="service_level"]').val(),
                 shipping_cost: $('[name="shipping_cost"]').val(),
             });
@@ -394,8 +560,19 @@ $this->registerJs(<<<JS
                 country_id: countryId,
                 state_id: stateId,
                 city_id: cityId,
-                service_level: serviceLevel
+                service_level: serviceLevel,
+                provider_code: providerCode || ''
             };
+
+            if (selectedOptionPayload) {
+                payload.selected_option = selectedOptionPayload;
+            }
+
+            var geolocation = getShippingGeolocationPayload();
+            if (geolocation) {
+                payload.latitude = geolocation.latitude;
+                payload.longitude = geolocation.longitude;
+            }
 
             if (csrfParam && csrfToken) {
                 payload[csrfParam] = csrfToken;
@@ -464,6 +641,80 @@ $this->registerJs(<<<JS
         setTimeout(function() {
             calculateShipping();
         }, 900);
+
+        function updateLocationCoordsText(lat, lng) {
+            $('#shipping-location-coords').text('Lat: ' + parseFloat(lat).toFixed(6) + ', Lng: ' + parseFloat(lng).toFixed(6));
+        }
+
+        function setLocationAndRequote(lat, lng) {
+            $('[name="shipping_latitude"]').val(lat);
+            $('[name="shipping_longitude"]').val(lng);
+            updateLocationCoordsText(lat, lng);
+            calculateShipping();
+        }
+
+        function initShippingLocationMap() {
+            if (typeof L === 'undefined') {
+                console.warn('Leaflet no disponible para mapa de geolocalizacion');
+                return;
+            }
+
+            var defaultLat = 15.5053;
+            var defaultLng = -88.0250;
+            var initialLat = parseFloat($('[name="shipping_latitude"]').val() || defaultLat);
+            var initialLng = parseFloat($('[name="shipping_longitude"]').val() || defaultLng);
+
+            var map = L.map('shipping-location-map').setView([initialLat, initialLng], 12);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            var marker = L.marker([initialLat, initialLng], { draggable: true }).addTo(map);
+            updateLocationCoordsText(initialLat, initialLng);
+
+            marker.on('dragend', function(e) {
+                var position = e.target.getLatLng();
+                setLocationAndRequote(position.lat, position.lng);
+            });
+
+            map.on('click', function(e) {
+                marker.setLatLng(e.latlng);
+                setLocationAndRequote(e.latlng.lat, e.latlng.lng);
+            });
+
+            if (navigator.geolocation && !$('[name="shipping_latitude"]').val() && !$('[name="shipping_longitude"]').val()) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    var lat = position.coords.latitude;
+                    var lng = position.coords.longitude;
+                    marker.setLatLng([lat, lng]);
+                    map.setView([lat, lng], 14);
+                    setLocationAndRequote(lat, lng);
+                });
+            }
+        }
+
+        setTimeout(function() {
+            initShippingLocationMap();
+        }, 100);
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                var lat = position.coords.latitude;
+                var lng = position.coords.longitude;
+
+                $('[name="shipping_latitude"]').val(lat);
+                $('[name="shipping_longitude"]').val(lng);
+
+                calculateShipping();
+            }, function(error) {
+                console.warn('Geolocation unavailable for shipping optimization:', error && error.message ? error.message : error);
+            }, {
+                enableHighAccuracy: false,
+                timeout: 6000,
+                maximumAge: 300000
+            });
+        }
 
         $(document).on('click', '#place-order-btn', function(e) {
             e.preventDefault();

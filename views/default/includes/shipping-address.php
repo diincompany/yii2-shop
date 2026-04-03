@@ -5,6 +5,21 @@
  */
 
 use yii\helpers\Html;
+
+$shipping = is_array($order['shipping'] ?? null) ? $order['shipping'] : [];
+$selectedOption = is_array($shipping['selected_option'] ?? null) ? $shipping['selected_option'] : [];
+$deliveryTypeLabel = trim((string) (
+    $shipping['courier_delivery_type_label_es']
+    ?? $selectedOption['delivery_type_label_es']
+    ?? $shipping['courier_delivery_type']
+    ?? $selectedOption['delivery_type']
+    ?? ''
+));
+$providerName = trim((string) ($shipping['provider_name'] ?? $shipping['provider_code'] ?? ''));
+$courierName = trim((string) ($shipping['courier_name'] ?? $selectedOption['courier_name'] ?? $selectedOption['name'] ?? ''));
+$warehouseName = trim((string) ($shipping['warehouse_name'] ?? ($shipping['warehouse']['name'] ?? '')));
+$shippingCost = isset($shipping['shipping_cost']) ? (float) $shipping['shipping_cost'] : null;
+$hasSelectedShipping = !empty($shipping);
 ?>
 
 <?php if (!empty($order['shipping_address'])): ?>
@@ -83,6 +98,41 @@ use yii\helpers\Html;
                 <p class="mb-0 text-muted small">
                     <strong><?= Yii::t('shop', 'Address Label') ?>:</strong> <?= Html::encode($shippingAddr['label']) ?>
                 </p>
+            <?php endif; ?>
+
+            <?php if ($hasSelectedShipping): ?>
+                <hr>
+                <h6 class="mb-3 text-uppercase fw-bold small"><?= Yii::t('shop', 'Selected Shipping') ?></h6>
+
+                <?php if ($providerName !== ''): ?>
+                    <p class="mb-1 text-muted small">
+                        <strong><?= Yii::t('shop', 'Provider') ?>:</strong> <?= Html::encode($providerName) ?>
+                    </p>
+                <?php endif; ?>
+
+                <?php if ($courierName !== ''): ?>
+                    <p class="mb-1 text-muted small">
+                        <strong><?= Yii::t('shop', 'Courier') ?>:</strong> <?= Html::encode($courierName) ?>
+                    </p>
+                <?php endif; ?>
+
+                <?php if ($deliveryTypeLabel !== ''): ?>
+                    <p class="mb-1 text-muted small">
+                        <strong><?= Yii::t('shop', 'Delivery Type') ?>:</strong> <?= Html::encode($deliveryTypeLabel) ?>
+                    </p>
+                <?php endif; ?>
+
+                <?php if ($warehouseName !== ''): ?>
+                    <p class="mb-1 text-muted small">
+                        <strong><?= Yii::t('shop', 'Warehouse') ?>:</strong> <?= Html::encode($warehouseName) ?>
+                    </p>
+                <?php endif; ?>
+
+                <?php if ($shippingCost !== null): ?>
+                    <p class="mb-0 text-muted small">
+                        <strong><?= Yii::t('shop', 'shipping') ?>:</strong> L <?= Html::encode(number_format($shippingCost, 2)) ?>
+                    </p>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
     </div>

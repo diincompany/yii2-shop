@@ -176,6 +176,24 @@ class DefaultController extends Controller
     }
 
     /**
+     * Parse selected shipping option payload from JSON string or array.
+     */
+    private function parseSelectedOptionPayload($value): ?array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (!is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        $decoded = json_decode($value, true);
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    /**
      * Get current cart for session using allowed statuses.
      *
      * @param ShopApiClientInterface $diinApi
@@ -499,6 +517,8 @@ class DefaultController extends Controller
                 'state_id' => (int) $request->post('state_id', 0),
                 'zipcode' => trim((string) $request->post('zip', '')),
                 'country_id' => (int) $request->post('country_id', 99),
+                'latitude' => trim((string) $request->post('shipping_latitude', '')),
+                'longitude' => trim((string) $request->post('shipping_longitude', '')),
             ];
 
             // Default billing to shipping to avoid missing billing payloads.
@@ -596,6 +616,12 @@ class DefaultController extends Controller
                     ?? $currentCart['shipping']['service_level']
                     ?? $currentCart['metadata']['shipping']['service_level']
                     ?? ''));
+                $providerCode = trim((string) ($request->post('provider_code')
+                    ?? $orderResponse['data']['shipping']['provider_code']
+                    ?? $currentCart['shipping']['provider_code']
+                    ?? $currentCart['metadata']['shipping']['provider_code']
+                    ?? ''));
+                $selectedOption = $this->parseSelectedOptionPayload($request->post('selected_option'));
 
                 // Enforce shipping address as the main address on the order.
                 $shippingPatchPayload = [
@@ -604,6 +630,14 @@ class DefaultController extends Controller
 
                 if ($serviceLevel !== '') {
                     $shippingPatchPayload['service_level'] = $serviceLevel;
+                }
+
+                if ($providerCode !== '') {
+                    $shippingPatchPayload['provider_code'] = $providerCode;
+                }
+
+                if ($selectedOption !== null) {
+                    $shippingPatchPayload['selected_option'] = $selectedOption;
                 }
 
                 $shippingUpdateResponse = $diinApi->updateOrderShipping($orderId, $shippingPatchPayload);
@@ -1310,6 +1344,8 @@ class DefaultController extends Controller
                 'country_id' => (int) ($request->post('country_id') ?? $request->post('billing_country_id')),
                 'state_id' => (int) ($request->post('state_id') ?? $request->post('billing_state_id')),
                 'city_id' => (int) ($request->post('city_id') ?? $request->post('billing_city_id')),
+                'latitude' => (string) ($request->post('shipping_latitude') ?? $request->post('latitude') ?? ''),
+                'longitude' => (string) ($request->post('shipping_longitude') ?? $request->post('longitude') ?? ''),
             ];
 
             $shippingFirstName = trim((string) ($request->post('first_name') ?? $request->post('billing_first_name', '')));
@@ -1350,10 +1386,14 @@ class DefaultController extends Controller
             }
 
             $serviceLevel = $request->post('service_level');
+            $providerCode = trim((string) $request->post('provider_code', ''));
+            $selectedOption = $this->parseSelectedOptionPayload($request->post('selected_option'));
 
             $this->logger()->info('Calculate shipping - Request', [
                 'cart_id' => $cartId,
+                'provider_code' => $providerCode,
                 'service_level' => $serviceLevel,
+                'selected_option' => $selectedOption,
                 'shipping_address' => $shippingAddress,
                 'all_post_data' => $request->post(),
             ]);
@@ -1365,8 +1405,18 @@ class DefaultController extends Controller
                     'country_id' => $shippingAddress['country_id'],
                     'state_id' => $shippingAddress['state_id'],
                     'city_id' => $shippingAddress['city_id'],
+                    'latitude' => $shippingAddress['latitude'] ?: null,
+                    'longitude' => $shippingAddress['longitude'] ?: null,
                 ],
             ];
+
+            if ($providerCode !== '') {
+                $quotePayload['provider_code'] = $providerCode;
+            }
+
+            if ($selectedOption !== null) {
+                $quotePayload['selected_option'] = $selectedOption;
+            }
 
             // Call API to calculate shipping
             $shippingResponse = $diinApi->calculateShippingQuote($cartId, $quotePayload);
@@ -1387,6 +1437,14 @@ class DefaultController extends Controller
                 'service_level' => $serviceLevel,
                 'shipping_address' => $shippingAddress, // This includes address_1 and zipcode if present
             ];
+
+            if ($providerCode !== '') {
+                $patchPayload['provider_code'] = $providerCode;
+            }
+
+            if ($selectedOption !== null) {
+                $patchPayload['selected_option'] = $selectedOption;
+            }
 
             // Now apply the shipping selection using PATCH endpoint
             $updateResponse = $diinApi->updateOrderShipping($cartId, $patchPayload);
@@ -1465,7 +1523,11 @@ class DefaultController extends Controller
                 'country_id' => (int) $request->post('country_id'),
                 'state_id' => (int) $request->post('state_id'),
                 'city_id' => (int) $request->post('city_id'),
+                'latitude' => (string) ($request->post('shipping_latitude') ?? $request->post('latitude') ?? ''),
+                'longitude' => (string) ($request->post('shipping_longitude') ?? $request->post('longitude') ?? ''),
             ];
+            $providerCode = trim((string) $request->post('provider_code', ''));
+            $selectedOption = $this->parseSelectedOptionPayload($request->post('selected_option'));
 
             // Validate address fields
             if (!$shippingAddress['country_id'] || !$shippingAddress['state_id'] || !$shippingAddress['city_id']) {
@@ -1477,13 +1539,25 @@ class DefaultController extends Controller
 
             $this->logger()->info('Get shipping options - Request', [
                 'cart_id' => $cartId,
+                'provider_code' => $providerCode,
+                'selected_option' => $selectedOption,
                 'shipping_address' => $shippingAddress,
             ]);
 
             // Call API to get shipping options
-            $optionsResponse = $diinApi->getShippingOptions($cartId, [
+            $shippingOptionsPayload = [
                 'shipping_address' => $shippingAddress,
-            ]);
+            ];
+
+            if ($providerCode !== '') {
+                $shippingOptionsPayload['provider_code'] = $providerCode;
+            }
+
+            if ($selectedOption !== null) {
+                $shippingOptionsPayload['selected_option'] = $selectedOption;
+            }
+
+            $optionsResponse = $diinApi->getShippingOptions($cartId, $shippingOptionsPayload);
 
             $this->logger()->info('Get shipping options - Response', [
                 'options_response' => $optionsResponse,
@@ -1537,6 +1611,8 @@ class DefaultController extends Controller
                     'order_id' => $optionsData['order_id'] ?? $cartId,
                     'currency' => $optionsData['currency'] ?? 'HNL',
                     'options' => $normalizedOptions,
+                    'providers' => isset($optionsData['providers']) && is_array($optionsData['providers']) ? $optionsData['providers'] : [],
+                    'warehouse' => isset($optionsData['warehouse']) && is_array($optionsData['warehouse']) ? $optionsData['warehouse'] : null,
                     'no_shipping_available' => $noShippingAvailable,
                 ],
             ];
