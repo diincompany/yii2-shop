@@ -1,6 +1,7 @@
 <?php
 use diincompany\shop\widgets\product\ProductCard;
 use diincompany\shop\widgets\SeoMeta;
+use yii\helpers\Json;
 use yii\helpers\Url;
 
 /* @var $this yii\web\View */
@@ -45,6 +46,44 @@ $sortOptions = [
 ];
 
 $currentSort = isset($sortOptions[$currentSort]) ? $currentSort : 'featured';
+
+$gaTrackerClass = 'diincompany\\yii2googleanalytics\\EcommerceTracker';
+$gaItems = [];
+$gaItemsByProductId = [];
+$gaListId = $category ? ('category_' . (string) ($category['slug'] ?? '')) : 'products_index';
+$gaListName = $category ? (string) ($category['name'] ?? Yii::t('shop', 'Products')) : Yii::t('shop', 'All Products');
+
+if (class_exists($gaTrackerClass)) {
+    foreach ($products as $index => $product) {
+        $item = $gaTrackerClass::buildItem(
+            (string) ($product['sku'] ?? $product['id'] ?? ''),
+            (string) ($product['name'] ?? ''),
+            (float) ($product['current_price'] ?? 0),
+            1,
+            (string) ($product['category']['name'] ?? ''),
+            (string) (($product['brand']['name'] ?? $product['brand_name'] ?? 'StreetID')),
+            '',
+            $gaListId,
+            $gaListName,
+            (int) $index
+        );
+
+        $gaItems[] = $item;
+        $gaItemsByProductId[(string) ($product['id'] ?? '')] = $item;
+    }
+
+    if (!empty($gaItems)) {
+        $this->registerJs(
+            'if (typeof window.gtag === "function") { ' . $gaTrackerClass::viewItemListJs($gaItems, $gaListId, $gaListName) . ' }',
+            \yii\web\View::POS_END,
+            'shop-ga4-view-item-list-' . md5($gaListId . $gaListName)
+        );
+    }
+}
+
+$gaItemsByProductIdJson = Json::htmlEncode($gaItemsByProductId);
+$gaListIdJson = Json::htmlEncode($gaListId);
+$gaListNameJson = Json::htmlEncode($gaListName);
 ?>
 
 <!-- Shop Content -->
@@ -171,6 +210,31 @@ $currentSort = isset($sortOptions[$currentSort]) ? $currentSort : 'featured';
 
 <?php
 $this->registerJs(<<<JS
+    var shopGaItemsByProductId = {$gaItemsByProductIdJson};
+    var shopGaListId = {$gaListIdJson};
+    var shopGaListName = {$gaListNameJson};
+
+    jQuery(document).off('click.shopGaSelectItem').on('click.shopGaSelectItem', '[data-ga-select-item="1"]', function() {
+        if (typeof window.gtag !== 'function') {
+            return;
+        }
+
+        var productId = String(jQuery(this).data('ga-product-id') || '');
+        var item = productId && shopGaItemsByProductId && shopGaItemsByProductId[productId]
+            ? shopGaItemsByProductId[productId]
+            : null;
+
+        if (!item) {
+            return;
+        }
+
+        window.gtag('event', 'select_item', {
+            item_list_id: shopGaListId,
+            item_list_name: shopGaListName,
+            items: [item]
+        });
+    });
+
     window.applyPriceFilter = function (checkbox) {
         const url = new URL(window.location.href);
         document.querySelectorAll('input[id^="price"]').forEach((item) => {

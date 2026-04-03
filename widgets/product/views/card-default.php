@@ -31,7 +31,11 @@ $moduleRoute = '/' . $moduleId;
         <?php endif; ?>
 
         <div class="product-media">
-        <a href="<?= Url::to([$moduleRoute . '/products/view', 'slug' => $product['slug']]) ?>">
+        <a
+            href="<?= Url::to([$moduleRoute . '/products/view', 'slug' => $product['slug']]) ?>"
+            data-ga-select-item="1"
+            data-ga-product-id="<?= (int) ($product['id'] ?? 0) ?>"
+        >
             <img src="<?= Html::encode($product['image_default']) ?>"
                  alt="<?= Html::encode($product['name']) ?>"
                  title="<?= Html::encode($product['name']) ?>"
@@ -51,7 +55,11 @@ $moduleRoute = '/' . $moduleId;
         <?php endif; ?>
 
         <h6 class="product-title">
-            <a href="<?= Url::to([$moduleRoute . '/products/view', 'slug' => $product['slug']]) ?>">
+            <a
+                href="<?= Url::to([$moduleRoute . '/products/view', 'slug' => $product['slug']]) ?>"
+                data-ga-select-item="1"
+                data-ga-product-id="<?= (int) ($product['id'] ?? 0) ?>"
+            >
                 <?= Html::encode($product['name']) ?>
             </a>
         </h6>
@@ -77,6 +85,14 @@ $moduleRoute = '/' . $moduleId;
                     <?= AddToCartButton::widget([
                         'productId' => $product['id'],
                         'quantity' => 1,
+                        'gaItemData' => [
+                            'item_id' => (string) ($product['sku'] ?? $product['id']),
+                            'item_name' => (string) ($product['name'] ?? ''),
+                            'item_category' => (string) ($product['category']['name'] ?? ''),
+                            'item_brand' => (string) (($product['brand']['name'] ?? $product['brand_name'] ?? 'StreetID')),
+                            'price' => (float) ($product['current_price'] ?? 0),
+                            'quantity' => 1,
+                        ],
                     ]) ?>
                 <?php endif; ?>
             </div>

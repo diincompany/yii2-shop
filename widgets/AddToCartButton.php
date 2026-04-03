@@ -5,6 +5,7 @@ use diincompany\shop\Module as ShopModule;
 use Yii;
 use yii\base\Widget;
 use yii\helpers\Html;
+use yii\helpers\Json;
 use yii\helpers\Url;
 use yii\web\View;
 
@@ -15,6 +16,8 @@ class AddToCartButton extends Widget
     public $quantity = 1;
     public $buttonClass = 'btn btn-mode me-3';
     public $buttonLabel = null;
+    public $gaItemData = [];
+    public $gaCurrency = 'HNL';
 
     public function init() {
         parent::init();
@@ -40,6 +43,8 @@ class AddToCartButton extends Widget
             'id' => $buttonId,
             'data-product-id' => $this->productId,
             'data-quantity' => $this->quantity,
+            'data-ga-item' => Json::htmlEncode(is_array($this->gaItemData) ? $this->gaItemData : []),
+            'data-ga-currency' => (string) $this->gaCurrency,
             'type' => 'button',
         ]);
 
@@ -75,6 +80,51 @@ class AddToCartButton extends Widget
                 }
                 
                 var originalText = btn.text();
+
+                function getGaItemPayload() {
+                    var raw = btn.attr('data-ga-item');
+                    var parsed = {};
+
+                    if (typeof raw === 'string' && raw.trim() !== '') {
+                        try {
+                            parsed = JSON.parse(raw);
+                        } catch (_error) {
+                            parsed = {};
+                        }
+                    }
+
+                    if (!parsed || typeof parsed !== 'object') {
+                        parsed = {};
+                    }
+
+                    var variantLabel = '';
+                    if (selectedVariantRadio.length > 0) {
+                        var variantInputId = selectedVariantRadio.attr('id');
+                        if (variantInputId) {
+                            var variantLabelEl = $('label[for="' + variantInputId + '"]').first();
+                            variantLabel = variantLabelEl.length ? $.trim(variantLabelEl.text()) : '';
+                        }
+                    } else if (variantSelect.length > 0) {
+                        variantLabel = $.trim(variantSelect.find('option:selected').text() || '');
+                    }
+
+                    var currentPriceText = $.trim(
+                        btn.closest('.product-detail').find('#product-price-display .text-primary').first().text()
+                    );
+                    var normalizedPrice = parseFloat((currentPriceText || '').replace(/[^0-9.]/g, ''));
+
+                    if (isFinite(normalizedPrice) && normalizedPrice > 0) {
+                        parsed.price = normalizedPrice;
+                    }
+
+                    if (variantLabel) {
+                        parsed.item_variant = variantLabel;
+                    }
+
+                    parsed.quantity = quantity;
+
+                    return parsed;
+                }
                 
                 // Disable button and show loading state
                 btn.prop('disabled', true).text('Procesando...');
@@ -102,6 +152,19 @@ class AddToCartButton extends Widget
                         if (response.success) {
                             const htmlMessage = '<div class="text-center"><i class="bi bi-check-circle-fill text-success fs-4"></i><div class="mt-2">Producto agregado al carrito con éxito</div></div>';
                             bootbox.alert(htmlMessage);
+
+                            if (typeof window.gtag === 'function') {
+                                var gaCurrency = (btn.data('ga-currency') || 'HNL').toString();
+                                var gaItem = getGaItemPayload();
+                                var unitPrice = parseFloat(gaItem.price || 0);
+                                var eventValue = (isFinite(unitPrice) ? unitPrice : 0) * quantity;
+
+                                window.gtag('event', 'add_to_cart', {
+                                    currency: gaCurrency,
+                                    value: eventValue,
+                                    items: [gaItem]
+                                });
+                            }
                             
                             // Auto-remove alert after 5 seconds
                             setTimeout(function() {
