@@ -8,9 +8,11 @@ use yii\helpers\Html;
 
 $shipping = is_array($order['shipping'] ?? null) ? $order['shipping'] : [];
 $selectedOption = is_array($shipping['selected_option'] ?? null) ? $shipping['selected_option'] : [];
+$currentLanguage = strtolower((string) (Yii::$app->language ?? ''));
+$isSpanishLanguage = strpos($currentLanguage, 'es') === 0;
 $deliveryTypeLabel = trim((string) (
-    $shipping['courier_delivery_type_label_es']
-    ?? $selectedOption['delivery_type_label_es']
+    ($isSpanishLanguage ? ($shipping['courier_delivery_type_label_es'] ?? null) : ($shipping['courier_delivery_type_label_en'] ?? null))
+    ?? ($isSpanishLanguage ? ($selectedOption['delivery_type_label_es'] ?? null) : ($selectedOption['delivery_type_label_en'] ?? null))
     ?? $shipping['courier_delivery_type']
     ?? $selectedOption['delivery_type']
     ?? ''
@@ -19,7 +21,11 @@ $providerName = trim((string) ($shipping['provider_name'] ?? $shipping['provider
 $courierName = trim((string) ($shipping['courier_name'] ?? $selectedOption['courier_name'] ?? $selectedOption['name'] ?? ''));
 $warehouseName = trim((string) ($shipping['warehouse_name'] ?? ($shipping['warehouse']['name'] ?? '')));
 $shippingCost = isset($shipping['shipping_cost']) ? (float) $shipping['shipping_cost'] : null;
-$hasSelectedShipping = !empty($shipping);
+$hasSelectedShipping = $providerName !== ''
+    || $courierName !== ''
+    || $deliveryTypeLabel !== ''
+    || $warehouseName !== ''
+    || $shippingCost !== null;
 ?>
 
 <?php if (!empty($order['shipping_address'])): ?>

@@ -1393,9 +1393,14 @@ class DefaultController extends Controller
                 'cart_id' => $cartId,
                 'provider_code' => $providerCode,
                 'service_level' => $serviceLevel,
-                'selected_option' => $selectedOption,
-                'shipping_address' => $shippingAddress,
-                'all_post_data' => $request->post(),
+                'has_selected_option' => !empty($selectedOption),
+                'shipping_address_summary' => [
+                    'country_id_present' => !empty($shippingAddress['country_id']),
+                    'state_id_present' => !empty($shippingAddress['state_id']),
+                    'city_id_present' => !empty($shippingAddress['city_id']),
+                    'has_coordinates' => trim((string) ($shippingAddress['latitude'] ?? '')) !== ''
+                        && trim((string) ($shippingAddress['longitude'] ?? '')) !== '',
+                ],
             ]);
 
             // Build payload for POST /shipping/quote (only location IDs, no address fields)
@@ -1405,8 +1410,8 @@ class DefaultController extends Controller
                     'country_id' => $shippingAddress['country_id'],
                     'state_id' => $shippingAddress['state_id'],
                     'city_id' => $shippingAddress['city_id'],
-                    'latitude' => $shippingAddress['latitude'] ?: null,
-                    'longitude' => $shippingAddress['longitude'] ?: null,
+                    'latitude' => trim((string) ($shippingAddress['latitude'] ?? '')) === '' ? null : $shippingAddress['latitude'],
+                    'longitude' => trim((string) ($shippingAddress['longitude'] ?? '')) === '' ? null : $shippingAddress['longitude'],
                 ],
             ];
 

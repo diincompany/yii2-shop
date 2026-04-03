@@ -42,9 +42,10 @@ use yii\helpers\Url;
             ]) ?>
 
             <div class="mt-4" id="shipping-geolocation-section">
-                <h6 class="border-bottom mb-3 pb-2">Ubicacion de entrega</h6>
-                <p class="small text-muted mb-2">Selecciona el punto exacto en el mapa para cotizar con el warehouse mas cercano.</p>
+                <h6 class="border-bottom mb-3 pb-2"><?= Yii::t('shop', 'Ubicación de entrega') ?></h6>
+                <p class="small text-muted mb-2"><?= Yii::t('shop', 'Selecciona el punto exacto en el mapa para cotizar con el warehouse más cercano.') ?></p>
                 <div id="shipping-location-map" style="height: 280px; border-radius: 8px; border: 1px solid #e5e7eb; overflow: hidden;"></div>
+                <p id="shipping-location-coords" class="small text-muted mt-2 mb-0"></p>
             </div>
 
             <div id="shipping-options-section" class="d-none mt-4">
