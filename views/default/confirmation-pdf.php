@@ -121,9 +121,11 @@ $shippingSummary = is_array($order['shipping'] ?? null) ? $order['shipping'] : [
 $selectedShippingOption = is_array($shippingSummary['selected_option'] ?? null) ? $shippingSummary['selected_option'] : [];
 $shippingProvider = $firstNonEmpty($shippingSummary['provider_name'] ?? null, $shippingSummary['provider_code'] ?? null);
 $shippingCourier = $firstNonEmpty($shippingSummary['courier_name'] ?? null, $selectedShippingOption['courier_name'] ?? null, $selectedShippingOption['name'] ?? null);
+$currentLanguage = strtolower((string) (Yii::$app->language ?? ''));
+$isSpanishLanguage = strpos($currentLanguage, 'es') === 0;
 $shippingDeliveryType = $firstNonEmpty(
-    $shippingSummary['courier_delivery_type_label_es'] ?? null,
-    $selectedShippingOption['delivery_type_label_es'] ?? null,
+    $isSpanishLanguage ? ($shippingSummary['courier_delivery_type_label_es'] ?? null) : ($shippingSummary['courier_delivery_type_label_en'] ?? null),
+    $isSpanishLanguage ? ($selectedShippingOption['delivery_type_label_es'] ?? null) : ($selectedShippingOption['delivery_type_label_en'] ?? null),
     $shippingSummary['courier_delivery_type'] ?? null,
     $selectedShippingOption['delivery_type'] ?? null
 );

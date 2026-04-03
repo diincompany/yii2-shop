@@ -78,8 +78,15 @@ $this->params['breadcrumbs'][] = $this->title;
 
 <?php if (empty($error) && !empty($items)): ?>
 <?php
-$this->registerCssFile('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
-$this->registerJsFile('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', ['position' => \yii\web\View::POS_HEAD]);
+$this->registerCssFile('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', [
+    'integrity' => 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=',
+    'crossorigin' => 'anonymous',
+]);
+$this->registerJsFile('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', [
+    'position' => \yii\web\View::POS_HEAD,
+    'integrity' => 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=',
+    'crossorigin' => 'anonymous',
+]);
 
 // Register custom JS for checkout functionality
 $processCheckoutUrl = Url::to([$moduleRoute . '/default/process-checkout']);
@@ -244,10 +251,10 @@ $this->registerJs(<<<JS
         }
 
         function getShippingGeolocationPayload() {
-            var latitude = $('[name="shipping_latitude"]').val();
-            var longitude = $('[name="shipping_longitude"]').val();
+            var latitude = $.trim(($('[name="shipping_latitude"]').val() || '').toString());
+            var longitude = $.trim(($('[name="shipping_longitude"]').val() || '').toString());
 
-            if (!latitude || !longitude) {
+            if (latitude === '' || longitude === '') {
                 return null;
             }
 
@@ -414,7 +421,10 @@ $this->registerJs(<<<JS
                 });
             }
 
-            var html = '<div class="btn-group-vertical w-100" role="group">';
+            var group = $('<div>', {
+                'class': 'btn-group-vertical w-100',
+                'role': 'group'
+            });
             var selectedIndex = 0;
 
             if (initialServiceLevel || initialProviderCode) {
@@ -481,18 +491,42 @@ $this->registerJs(<<<JS
                     courier_options: option.courier_options || []
                 };
                 
-                html += '<input type="radio" class="btn-check shipping-option" name="shipping_option" value="' + option.service_level + '" id="shipping_' + index + '"' + isSelected + ' data-provider-code="' + (option.provider_code || '') + '" data-service-level="' + option.service_level + '" data-shipping-cost="' + option.shipping_cost + '" data-selected-option=\'' + JSON.stringify(selectedPayload).replace(/'/g, '&#39;') + '\'>';
-                html += '<label class="btn btn-outline-primary w-100 text-start" for="shipping_' + index + '">';
-                html += '  <div class="d-flex justify-content-between align-items-center">';
-                html += '    <span><strong>' + providerName + '</strong> - ' + optionTitle + daysDisplay + '</span>';
-                html += '    <span>' + costText + '</span>';
-                html += '  </div>';
-                html += '</label>';
+                var inputId = 'shipping_' + index;
+                var radio = $('<input>', {
+                    type: 'radio',
+                    'class': 'btn-check shipping-option',
+                    name: 'shipping_option',
+                    value: option.service_level,
+                    id: inputId,
+                    'data-provider-code': option.provider_code || '',
+                    'data-service-level': option.service_level,
+                    'data-shipping-cost': option.shipping_cost
+                });
+
+                if (index === selectedIndex) {
+                    radio.prop('checked', true);
+                }
+
+                radio.data('selected-option', selectedPayload);
+
+                var label = $('<label>', {
+                    'class': 'btn btn-outline-primary w-100 text-start',
+                    'for': inputId
+                });
+                var row = $('<div>', {
+                    'class': 'd-flex justify-content-between align-items-center'
+                });
+                var left = $('<span>');
+                left.append($('<strong>').text(providerName));
+                left.append(document.createTextNode(' - ' + optionTitle + daysDisplay));
+                var right = $('<span>').text(costText);
+
+                row.append(left, right);
+                label.append(row);
+                group.append(radio, label);
             });
 
-            html += '</div>';
-            
-            container.html(html);
+            container.empty().append(group);
             $('#shipping-options-section').removeClass('d-none');
 
             // Bind change event to shipping options
@@ -683,13 +717,35 @@ $this->registerJs(<<<JS
                 setLocationAndRequote(e.latlng.lat, e.latlng.lng);
             });
 
-            if (navigator.geolocation && !$('[name="shipping_latitude"]').val() && !$('[name="shipping_longitude"]').val()) {
+            var currentLat = $.trim(($('[name="shipping_latitude"]').val() || '').toString());
+            var currentLng = $.trim(($('[name="shipping_longitude"]').val() || '').toString());
+            if (currentLat !== '' && currentLng !== '') {
+                setLocationAndRequote(parseFloat(currentLat), parseFloat(currentLng));
+            }
+
+            function centerMapToCoordinates(lat, lng, shouldRequote) {
+                marker.setLatLng([lat, lng]);
+                map.setView([lat, lng], 14);
+                if (shouldRequote) {
+                    setLocationAndRequote(lat, lng);
+                } else {
+                    $('[name="shipping_latitude"]').val(lat);
+                    $('[name="shipping_longitude"]').val(lng);
+                    updateLocationCoordsText(lat, lng);
+                }
+            }
+
+            if (navigator.geolocation && currentLat === '' && currentLng === '') {
                 navigator.geolocation.getCurrentPosition(function(position) {
                     var lat = position.coords.latitude;
                     var lng = position.coords.longitude;
-                    marker.setLatLng([lat, lng]);
-                    map.setView([lat, lng], 14);
-                    setLocationAndRequote(lat, lng);
+                    centerMapToCoordinates(lat, lng, true);
+                }, function(error) {
+                    console.warn('Geolocation unavailable for shipping optimization:', error && error.message ? error.message : error);
+                }, {
+                    enableHighAccuracy: false,
+                    timeout: 6000,
+                    maximumAge: 300000
                 });
             }
         }
@@ -697,24 +753,6 @@ $this->registerJs(<<<JS
         setTimeout(function() {
             initShippingLocationMap();
         }, 100);
-
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(function(position) {
-                var lat = position.coords.latitude;
-                var lng = position.coords.longitude;
-
-                $('[name="shipping_latitude"]').val(lat);
-                $('[name="shipping_longitude"]').val(lng);
-
-                calculateShipping();
-            }, function(error) {
-                console.warn('Geolocation unavailable for shipping optimization:', error && error.message ? error.message : error);
-            }, {
-                enableHighAccuracy: false,
-                timeout: 6000,
-                maximumAge: 300000
-            });
-        }
 
         $(document).on('click', '#place-order-btn', function(e) {
             e.preventDefault();
