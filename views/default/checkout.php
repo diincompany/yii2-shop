@@ -18,6 +18,7 @@
  * @var string|null $error
  */
 
+use yii\helpers\Json;
 use yii\helpers\Url;
 
 $this->title = Yii::t('shop', 'checkout');
@@ -26,6 +27,23 @@ $breadcrumbsView = is_object($module) && method_exists($module, 'getBreadcrumbsV
     ? $module->getBreadcrumbsView()
     : null;
 $moduleRoute = '/' . trim((string) ($module->id ?? 'shop'), '/');
+
+$gaTrackerClass = 'diincompany\\yii2googleanalytics\\EcommerceTracker';
+$gaItems = [];
+
+if (class_exists($gaTrackerClass) && !empty($items)) {
+    foreach ($items as $item) {
+        $gaItems[] = $gaTrackerClass::buildItem(
+            (string) ($item['sku'] ?? $item['product_id'] ?? ''),
+            (string) ($item['product_name'] ?? ''),
+            (float) ($item['price_amount'] ?? $item['price'] ?? 0),
+            max(1, (int) ($item['quantity'] ?? 1)),
+            (string) ($item['category_name'] ?? ''),
+            'StreetID',
+            (string) ($item['variant_name'] ?? $item['product_variant_name'] ?? '')
+        );
+    }
+}
 
 $this->params['breadcrumbs'][] = ['label' => Yii::t('shop', 'Cart'), 'url' => [$moduleRoute . '/cart']];
 $this->params['breadcrumbs'][] = $this->title;
@@ -106,6 +124,15 @@ $initialServiceLevelJson = json_encode((string) ($shippingServiceLevel ?? ''));
 $initialProviderCodeJson = json_encode((string) (($persistedShipping['provider_code'] ?? '')));
 $initialShippingOptionJson = json_encode((array) ($persistedShipping ?? []));
 $initialSelectedOptionJson = json_encode((array) (($persistedShipping['selected_option'] ?? [])));
+$gaCheckoutItemsJson = Json::htmlEncode($gaItems);
+
+if (class_exists($gaTrackerClass) && !empty($gaItems)) {
+    $this->registerJs(
+        'if (typeof window.gtag === "function") { ' . $gaTrackerClass::beginCheckoutJs($gaItems, (float) $grandTotal, (string) ($couponCode ?? ''), 'HNL') . ' }',
+        \yii\web\View::POS_END,
+        'shop-ga4-begin-checkout'
+    );
+}
 
 $this->registerJs(<<<JS
     jQuery(function($) {
@@ -123,6 +150,7 @@ $this->registerJs(<<<JS
         var initialProviderCode = ($initialProviderCodeJson || '').toString().trim();
         var initialShippingOption = $initialShippingOptionJson || {};
         var initialSelectedOption = $initialSelectedOptionJson || {};
+        var gaCheckoutItems = $gaCheckoutItemsJson || [];
 
         if (initialSelectedOption && Object.keys(initialSelectedOption).length > 0) {
             $('[name="selected_option"]').val(JSON.stringify(initialSelectedOption));
@@ -576,6 +604,16 @@ $this->registerJs(<<<JS
             $('[name="provider_code"]').val(providerCode || '');
             $('[name="selected_option"]').val(selectedOptionPayload ? JSON.stringify(selectedOptionPayload) : '');
 
+            if (typeof window.gtag === 'function' && gaCheckoutItems.length > 0) {
+                window.gtag('event', 'add_shipping_info', {
+                    currency: 'HNL',
+                    value: parseCurrencyAmount($('#checkout-grand-total').text()),
+                    shipping: parseFloat(shippingCost || 0),
+                    shipping_tier: (serviceLevel || '').toString(),
+                    items: gaCheckoutItems
+                });
+            }
+
             // Verify values were set
             console.log('Form values after update:', {
                 provider_code: $('[name="provider_code"]').val(),
@@ -775,6 +813,18 @@ $this->registerJs(<<<JS
             var btn = $(this);
             var originalLabel = btn.html();
             btn.prop('disabled', true);
+
+            if (typeof window.gtag === 'function' && gaCheckoutItems.length > 0) {
+                var selectedProvider = ($('[name="provider_code"]').val() || '').toString().trim();
+                var paymentType = selectedProvider !== '' ? selectedProvider : 'checkout_submit';
+
+                window.gtag('event', 'add_payment_info', {
+                    currency: 'HNL',
+                    value: parseCurrencyAmount($('#checkout-grand-total').text()),
+                    payment_type: paymentType,
+                    items: gaCheckoutItems
+                });
+            }
 
             var formData = form.serialize();
 

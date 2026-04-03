@@ -5,6 +5,8 @@
  * @var array|null $order
  */
 
+use yii\helpers\Json;
+
 $this->title = Yii::t('shop', 'Order Confirmation');
 ?>
 
@@ -34,6 +36,65 @@ $this->title = Yii::t('shop', 'Order Confirmation');
             $gatewayCode !== ''
             && (strpos($gatewayCode, 'bank') !== false || strpos($gatewayCode, 'transfer') !== false)
         ) || $hasBankAccounts;
+
+        $gaTrackerClass = 'diincompany\\yii2googleanalytics\\EcommerceTracker';
+        if (class_exists($gaTrackerClass)) {
+            $gaOrderItems = [];
+            foreach ((array) ($order['items'] ?? []) as $item) {
+                $gaOrderItems[] = $gaTrackerClass::buildItem(
+                    (string) ($item['sku'] ?? $item['product_id'] ?? ''),
+                    (string) ($item['product_name'] ?? ''),
+                    (float) ($item['price_amount'] ?? $item['price'] ?? 0),
+                    max(1, (int) ($item['quantity'] ?? 1)),
+                    (string) ($item['category_name'] ?? ''),
+                    'StreetID',
+                    (string) ($item['variant_name'] ?? $item['product_variant_name'] ?? '')
+                );
+            }
+
+            $transactionId = (string) ($order['hash'] ?? $order['id'] ?? '');
+            $paymentType = $gatewayCode !== '' ? $gatewayCode : 'checkout';
+
+            if ($transactionId !== '' && !empty($gaOrderItems)) {
+                $addPaymentInfoJs = $gaTrackerClass::addPaymentInfoJs(
+                    $gaOrderItems,
+                    (float) ($order['total_amount'] ?? 0),
+                    $paymentType,
+                    (string) ($order['coupon_code'] ?? ''),
+                    'HNL'
+                );
+
+                $purchaseJs = $gaTrackerClass::purchaseJs(
+                    $transactionId,
+                    $gaOrderItems,
+                    (float) ($order['total_amount'] ?? 0),
+                    (float) ($order['tax_amount'] ?? 0),
+                    (float) ($order['shipping_amount'] ?? 0),
+                    'HNL',
+                    (string) ($order['coupon_code'] ?? ''),
+                    'StreetID Online'
+                );
+
+                $purchaseGuardKeyJson = Json::htmlEncode('ga4_purchase_' . $transactionId);
+
+                $this->registerJs(
+                    <<<JS
+if (typeof window.gtag === 'function') {
+    var purchaseGuardKey = $purchaseGuardKeyJson;
+    if (!window.sessionStorage || !window.sessionStorage.getItem(purchaseGuardKey)) {
+        $addPaymentInfoJs
+        $purchaseJs
+        if (window.sessionStorage) {
+            window.sessionStorage.setItem(purchaseGuardKey, '1');
+        }
+    }
+}
+JS,
+                    \yii\web\View::POS_END,
+                    'shop-ga4-purchase-' . $transactionId
+                );
+            }
+        }
     ?>
     <?= $this->render('includes/confirmation/success-message', [
         'isPendingPayment' => $isPendingPayment,

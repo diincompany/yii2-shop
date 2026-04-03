@@ -12,6 +12,7 @@
  */
 
 use yii\helpers\Html;
+use yii\helpers\Json;
 use yii\helpers\Url;
 
 $this->title = Yii::t('shop', 'shopping_cart');
@@ -22,6 +23,31 @@ $breadcrumbsView = is_object($module) && method_exists($module, 'getBreadcrumbsV
     ? $module->getBreadcrumbsView()
     : null;
 $moduleRoute = '/' . trim((string) ($module->id ?? 'shop'), '/');
+
+$gaTrackerClass = 'diincompany\\yii2googleanalytics\\EcommerceTracker';
+$gaItems = [];
+
+if (class_exists($gaTrackerClass) && !empty($items)) {
+    foreach ($items as $item) {
+        $gaItems[] = $gaTrackerClass::buildItem(
+            (string) ($item['sku'] ?? $item['product_id'] ?? ''),
+            (string) ($item['product_name'] ?? ''),
+            (float) ($item['price_amount'] ?? $item['price'] ?? 0),
+            max(1, (int) ($item['quantity'] ?? 1)),
+            (string) ($item['category_name'] ?? ''),
+            'StreetID',
+            (string) ($item['variant_name'] ?? $item['product_variant_name'] ?? '')
+        );
+    }
+
+    if (!empty($gaItems)) {
+        $this->registerJs(
+            'if (typeof window.gtag === "function") { ' . $gaTrackerClass::viewCartJs($gaItems, (float) $grandTotal, 'HNL') . ' }',
+            \yii\web\View::POS_END,
+            'shop-ga4-view-cart'
+        );
+    }
+}
 ?>
 
 <!-- Cart Content -->
@@ -184,6 +210,13 @@ $moduleRoute = '/' . trim((string) ($module->id ?? 'shop'), '/');
                                 data-has-variants="<?= $hasVariants ?>"
                                 data-variant-pricing-mode="<?= $variantPricingMode ?>"
                                 data-variant-inventory-mode="<?= $variantInventoryMode ?>"
+                                data-ga-item='<?= Html::encode(Json::htmlEncode([
+                                    'item_id' => (string) ($item['sku'] ?? $item['product_id'] ?? ''),
+                                    'item_name' => (string) ($item['product_name'] ?? ''),
+                                    'price' => (float) $displayPrice,
+                                    'quantity' => max(1, (int) ($item['quantity'] ?? 1)),
+                                    'item_variant' => (string) $variantLabel,
+                                ])) ?>'
                             >
                                 <td class="text-center product-thumbnail">
                                     <a class="text-reset" href="<?= Url::to([$moduleRoute . '/products/view', 'id' => $item['product_id']]) ?>">
@@ -741,6 +774,30 @@ $(document).ready(function() {
     $('.remove-item').on('click', function() {
         var btn = $(this);
         var itemId = btn.data('item-id');
+        var row = btn.closest('tr');
+
+        if (typeof window.gtag === 'function') {
+            var rawGaItem = (row.attr('data-ga-item') || '').toString().trim();
+
+            if (rawGaItem !== '') {
+                try {
+                    var gaItem = JSON.parse(rawGaItem);
+                    var quantityInput = row.find('.cart-qty-input').first();
+                    var quantity = normalizeQuantity(quantityInput.val());
+                    var unitPrice = parseFloat(gaItem.price || 0);
+
+                    gaItem.quantity = quantity;
+
+                    window.gtag('event', 'remove_from_cart', {
+                        currency: 'HNL',
+                        value: (isFinite(unitPrice) ? unitPrice : 0) * quantity,
+                        items: [gaItem]
+                    });
+                } catch (_error) {
+                    // Ignore malformed GA payload and continue with remove flow.
+                }
+            }
+        }
         
         if (confirm($confirmRemoveItemJson)) {
             removeItem(itemId);

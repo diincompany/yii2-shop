@@ -1,6 +1,7 @@
 <?php
 use diincompany\shop\widgets\SeoMeta;
 use yii\helpers\Html;
+use yii\helpers\Json;
 use yii\helpers\Url;
 
 $this->title = $product['name'];
@@ -245,6 +246,33 @@ foreach ($variants as $variant) {
         'is_selectable' => $isSelectable ? 1 : 0,
     ];
 }
+
+$gaTrackerClass = 'diincompany\\yii2googleanalytics\\EcommerceTracker';
+$gaItemPayload = [];
+
+if (class_exists($gaTrackerClass)) {
+    $gaItemPayload = $gaTrackerClass::buildItem(
+        (string) ($product['sku'] ?? $product['id'] ?? ''),
+        (string) ($product['name'] ?? ''),
+        (float) ($selectedSalePriceAmount > 0 ? $selectedSalePriceAmount : $selectedPriceAmount),
+        1,
+        (string) ($product['category']['name'] ?? ''),
+        (string) (($product['brand']['name'] ?? $product['brand_name'] ?? 'StreetID')),
+        is_array($defaultVariant) ? $buildVariantLabel($defaultVariant) : ''
+    );
+
+    $viewItemJs = $gaTrackerClass::viewItemJs(
+        $gaItemPayload,
+        (float) ($selectedSalePriceAmount > 0 ? $selectedSalePriceAmount : $selectedPriceAmount),
+        'HNL'
+    );
+
+    $this->registerJs(
+        'if (typeof window.gtag === "function") { ' . $viewItemJs . ' }',
+        \yii\web\View::POS_END,
+        'shop-ga4-view-item-' . (string) ($product['id'] ?? uniqid('product-', false))
+    );
+}
 ?>
 
 <?= $this->render('includes/_product_content', [
@@ -264,6 +292,7 @@ foreach ($variants as $variant) {
     'defaultVariant' => $defaultVariant,
     'buildVariantLabel' => $buildVariantLabel,
     'selectedStock' => $selectedStock,
+                'gaItemPayload' => $gaItemPayload,
 ]) ?>
 
 <?= $this->render('includes/_product_tabs', [

@@ -18,6 +18,7 @@ use yii\helpers\Url;
  * @var array|null $defaultVariant
  * @var callable $buildVariantLabel
  * @var int $selectedStock
+ * @var array $gaItemPayload
  */
 
 $moduleId = trim((string) (Yii::$app->controller->module->id ?? ''), '/');
@@ -110,6 +111,8 @@ $moduleRoute = '/' . $moduleId;
                 <?= AddToCartButton::widget([
                     'productId' => $product['id'],
                     'buttonClass' => 'btn btn-mode me-3 add-to-cart-btn',
+                    'gaItemData' => $gaItemPayload ?? [],
+                    'gaCurrency' => 'HNL',
                 ]) ?>
             </div>
         </div>
