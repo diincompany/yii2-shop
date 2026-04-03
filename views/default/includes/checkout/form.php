@@ -20,7 +20,11 @@ use yii\helpers\Url;
         <form id="checkout-form" action="<?= Url::to([$moduleRoute . '/default/process-checkout']) ?>" method="post">
             <?= Html::hiddenInput(Yii::$app->request->csrfParam, Yii::$app->request->csrfToken) ?>
             <?= Html::hiddenInput('service_level', $shippingServiceLevel ?? '') ?>
+            <?= Html::hiddenInput('provider_code', '') ?>
+            <?= Html::hiddenInput('selected_option', '') ?>
             <?= Html::hiddenInput('shipping_cost', $shipping ?? 0) ?>
+            <?= Html::hiddenInput('shipping_latitude', '') ?>
+            <?= Html::hiddenInput('shipping_longitude', '') ?>
 
             <?= $this->render('../../_forms/shipping-address.php', [
                 'countries' => $countries,
@@ -36,6 +40,12 @@ use yii\helpers\Url;
                 'address' => $billingAddress ?? [],
                 'moduleRoute' => $moduleRoute,
             ]) ?>
+
+            <div class="mt-4" id="shipping-geolocation-section">
+                <h6 class="border-bottom mb-3 pb-2">Ubicacion de entrega</h6>
+                <p class="small text-muted mb-2">Selecciona el punto exacto en el mapa para cotizar con el warehouse mas cercano.</p>
+                <div id="shipping-location-map" style="height: 280px; border-radius: 8px; border: 1px solid #e5e7eb; overflow: hidden;"></div>
+            </div>
 
             <div id="shipping-options-section" class="d-none mt-4">
                 <h6 class="border-bottom mb-3 pb-2"><?= Yii::t('shop', 'shipping_options') ?></h6>

@@ -117,6 +117,17 @@ if ($gatewayCode !== '') {
 
 $discountAmount = (float) ($order['discount_amount'] ?? 0);
 $shippingAmount = (float) ($order['shipping_amount'] ?? ($order['shipping']['shipping_cost'] ?? 0));
+$shippingSummary = is_array($order['shipping'] ?? null) ? $order['shipping'] : [];
+$selectedShippingOption = is_array($shippingSummary['selected_option'] ?? null) ? $shippingSummary['selected_option'] : [];
+$shippingProvider = $firstNonEmpty($shippingSummary['provider_name'] ?? null, $shippingSummary['provider_code'] ?? null);
+$shippingCourier = $firstNonEmpty($shippingSummary['courier_name'] ?? null, $selectedShippingOption['courier_name'] ?? null, $selectedShippingOption['name'] ?? null);
+$shippingDeliveryType = $firstNonEmpty(
+    $shippingSummary['courier_delivery_type_label_es'] ?? null,
+    $selectedShippingOption['delivery_type_label_es'] ?? null,
+    $shippingSummary['courier_delivery_type'] ?? null,
+    $selectedShippingOption['delivery_type'] ?? null
+);
+$shippingWarehouse = $firstNonEmpty($shippingSummary['warehouse_name'] ?? null, $shippingSummary['warehouse']['name'] ?? null);
 
 $merchantLogoUrl = $firstNonEmpty(
     $merchant['logo_url'] ?? null,
@@ -363,6 +374,20 @@ $storeAddress = $firstNonEmpty(
     <div class="section-title"><?= Html::encode(Yii::t('shop', 'Shipping Address')) ?></div>
     <div class="mono"><?= Html::encode($shippingAddressText !== '' ? $shippingAddressText : Yii::t('shop', 'Not available')) ?></div>
 </div>
+
+<?php if (!empty($shippingSummary)): ?>
+    <div class="section">
+        <div class="section-title"><?= Html::encode(Yii::t('shop', 'Selected Shipping')) ?></div>
+        <table class="meta-table">
+            <tr>
+                <td style="width: 25%;"><strong><?= Html::encode(Yii::t('shop', 'Provider')) ?>:</strong><br><?= Html::encode($shippingProvider !== '' ? $shippingProvider : Yii::t('shop', 'Not available')) ?></td>
+                <td style="width: 25%;"><strong><?= Html::encode(Yii::t('shop', 'Courier')) ?>:</strong><br><?= Html::encode($shippingCourier !== '' ? $shippingCourier : Yii::t('shop', 'Not available')) ?></td>
+                <td style="width: 25%;"><strong><?= Html::encode(Yii::t('shop', 'Delivery Type')) ?>:</strong><br><?= Html::encode($shippingDeliveryType !== '' ? $shippingDeliveryType : Yii::t('shop', 'Not available')) ?></td>
+                <td style="width: 25%;"><strong><?= Html::encode(Yii::t('shop', 'Warehouse')) ?>:</strong><br><?= Html::encode($shippingWarehouse !== '' ? $shippingWarehouse : Yii::t('shop', 'Not available')) ?></td>
+            </tr>
+        </table>
+    </div>
+<?php endif; ?>
 
 <div class="section">
     <div class="section-title"><?= Html::encode(Yii::t('shop', 'Billing Address')) ?></div>
