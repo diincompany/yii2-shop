@@ -293,16 +293,11 @@ $this->registerJs(<<<JS
         }
 
         function getShippingOptions(countryId, stateId, cityId) {
-            var providerCode = ($('[name="provider_code"]').val() || '').toString().trim();
             var payload = {
                 country_id: countryId,
                 state_id: stateId,
                 city_id: cityId
             };
-
-            if (providerCode) {
-                payload.provider_code = providerCode;
-            }
 
             var geolocation = getShippingGeolocationPayload();
             if (geolocation) {
