@@ -3,10 +3,13 @@
 namespace diincompany\shop;
 
 use Yii;
+use yii\base\Application;
+use yii\base\Event;
 use yii\base\InvalidConfigException;
 use diincompany\shop\contracts\ShopApiClientInterface;
 use diincompany\shop\contracts\ShopLoggerInterface;
 use diincompany\shop\contracts\ShopSessionContextInterface;
+use diincompany\shop\events\BeforeRequestHandler;
 use diincompany\shop\services\DefaultShopSessionContext;
 use diincompany\shop\services\NullShopLogger;
 use diincompany\shop\services\YiiComponentShopLogger;
@@ -71,6 +74,14 @@ class Module extends \yii\base\Module
         parent::init();
 
         Yii::setAlias('@diinshop', __DIR__);
+
+        if (Yii::$app instanceof \yii\web\Application) {
+            Event::on(
+                Application::class,
+                Application::EVENT_BEFORE_REQUEST,
+                [BeforeRequestHandler::class, 'handle']
+            );
+        }
 
         self::registerTranslations();
     }
