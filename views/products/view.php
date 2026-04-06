@@ -295,10 +295,6 @@ if (class_exists($gaTrackerClass)) {
                 'gaItemPayload' => $gaItemPayload,
 ]) ?>
 
-<?= $this->render('includes/_product_tabs', [
-    'productDescription' => $productDescription,
-]) ?>
-
 <?= $this->render('includes/_related_products', [
     'relatedProducts' => $product['related_products'] ?? [],
 ]) ?>

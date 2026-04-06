@@ -165,10 +165,10 @@ $gaListNameJson = Json::htmlEncode($gaListName);
                         </div>
                     <?php else: ?>
                         <?php foreach ($products as $product): ?>
-                            <div class="col-12 col-sm-6 col-xl-4">
+                            <div class="col-12 col-sm-4 col-xl-3">
                                 <?= ProductCard::widget([
                                     'product' => $product,
-                                    'variant' => ProductCard::VARIANT_DEFAULT,
+                                    'variant' => ProductCard::VARIANT_MINIMAL,
                                 ]) ?>
                             </div>
                         <?php endforeach; ?>

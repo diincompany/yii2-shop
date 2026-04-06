@@ -18,18 +18,16 @@ use yii\helpers\Html;
                 <div class="swiper-slide">
                     <div class="pd-gallery-slide">
                         <a class="gallery-link" href="<?= $imageUrl ?>?tr=w-1200,h-1200">
-                            <i class="bi bi-arrows-fullscreen"></i>
+                            <?= Html::img($imageUrl . '?tr=w-600,h-800', ['class' => 'img-fluid rounded', 'alt' => $product['name']]) ?>
                         </a>
-                        <?= Html::img($imageUrl . '?tr=w-800,h-800', ['class' => 'img-fluid', 'alt' => $product['name']]) ?>
                     </div>
                 </div>
                 <?php foreach ($thumbnails as $img): ?>
                     <div class="swiper-slide">
                         <div class="pd-gallery-slide">
                             <a class="gallery-link" href="<?= $img['url'] ?>?tr=w-1200,h-1200">
-                                <i class="bi bi-arrows-fullscreen"></i>
+                                <?= Html::img($img['url'] . '?tr=w-600,h-800', ['class' => 'img-fluid rounded', 'alt' => $product['name']]) ?>
                             </a>
-                            <?= Html::img($img['url'] . '?tr=w-800,h-800', ['class' => 'img-fluid', 'alt' => $product['name']]) ?>
                         </div>
                     </div>
                 <?php endforeach; ?>

@@ -9,11 +9,12 @@ use yii\base\Widget;
 class ProductCard extends Widget
 {
     public const VARIANT_DEFAULT = 'default';
+    public const VARIANT_MINIMAL = 'minimal';
     public const VARIANT_SMALL = 'small';
 
     public $product = [];
     public $variant = self::VARIANT_DEFAULT;
-    public $fallbackImage = 'https://ik.imagekit.io/ready/diin/img/site/placeholder.png';
+    public $fallbackImage = 'https://placehold.net/product.png';
     public $detailsLabel;
 
     private array $normalizedProduct = [];
@@ -25,7 +26,7 @@ class ProductCard extends Widget
 
         $this->product = is_array($this->product) ? $this->product : [];
 
-        if (!in_array($this->variant, [self::VARIANT_DEFAULT, self::VARIANT_SMALL], true)) {
+        if (!in_array($this->variant, [self::VARIANT_DEFAULT, self::VARIANT_MINIMAL, self::VARIANT_SMALL], true)) {
             $this->variant = self::VARIANT_DEFAULT;
         }
 
@@ -47,7 +48,15 @@ class ProductCard extends Widget
 
     private function resolveView(): string
     {
-        return $this->variant === self::VARIANT_SMALL ? 'card-small' : 'card-default';
+        if ($this->variant === self::VARIANT_SMALL) {
+            return 'card-small';
+        }
+
+        if ($this->variant === self::VARIANT_MINIMAL) {
+            return 'card-minimal';
+        }
+
+        return 'card-default';
     }
 
     private function normalizeProduct(array $product): array
@@ -55,6 +64,7 @@ class ProductCard extends Widget
         $productId = (int)($product['id'] ?? 0);
         $slug = (string)($product['slug'] ?? '');
         $name = (string)($product['name'] ?? '');
+        $shortDescription = (string)($product['short_description'] ?? '');
         $mainImage = (string)($product['main_image'] ?? $this->fallbackImage);
         $price = (float)($product['price'] ?? 0);
         $salePrice = (float)($product['sale_price'] ?? 0);
@@ -67,10 +77,16 @@ class ProductCard extends Widget
             ? (int)round((($price - $salePrice) / $price) * 100)
             : 0;
 
+        // Short description must have no more than 50 characters
+        if (mb_strlen($shortDescription) > 50) {
+            $shortDescription = mb_substr($shortDescription, 0, 47) . '...';
+        }
+
         return [
             'id' => $productId,
             'slug' => $slug,
             'name' => $name,
+            'short_description' => $shortDescription,
             'image_default' => $this->withTransform($mainImage, 'w-400,h-400'),
             'image_small' => $this->withTransform($mainImage, 'w-300,h-300'),
             'price' => $price,
