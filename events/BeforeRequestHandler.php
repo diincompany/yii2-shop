@@ -2,6 +2,8 @@
 
 namespace diincompany\shop\events;
 
+use diincompany\shop\Module;
+use diincompany\shop\contracts\ShopApiClientInterface;
 use Yii;
 use yii\base\Event;
 
@@ -9,6 +11,18 @@ class BeforeRequestHandler
 {
     public static function handle(Event $event): void
     {
+        if (!(Yii::$app instanceof \yii\web\Application)) {
+            return;
+        }
+
+        if (!Yii::$app->has('request') || !Yii::$app->has('response')) {
+            return;
+        }
+
+        $request = Yii::$app->request;
+        $response = Yii::$app->response;
+        $view = Yii::$app->has('view') ? Yii::$app->view : null;
+
         // Cache bypass via query params is restricted to dev and authenticated admins.
         $canBypassCache = defined('YII_ENV_DEV') && YII_ENV_DEV;
         if (
@@ -26,61 +40,93 @@ class BeforeRequestHandler
         $forceCategoriesRefresh = false;
 
         if ($canBypassCache) {
-            $refreshCacheParam = strtolower((string) Yii::$app->request->get('refreshCache', ''));
+            $refreshCacheParam = strtolower((string) $request->get('refreshCache', ''));
             $forceRefreshAll = in_array($refreshCacheParam, ['1', 'true', 'yes'], true);
 
-            $refreshMerchantParam = strtolower((string) Yii::$app->request->get('refreshMerchant', ''));
+            $refreshMerchantParam = strtolower((string) $request->get('refreshMerchant', ''));
             $forceMerchantRefresh = $forceRefreshAll || in_array($refreshMerchantParam, ['1', 'true', 'yes'], true);
-            $refreshCategoriesParam = strtolower((string) Yii::$app->request->get('refreshCategories', ''));
+            $refreshCategoriesParam = strtolower((string) $request->get('refreshCategories', ''));
             $forceCategoriesRefresh = $forceRefreshAll || in_array($refreshCategoriesParam, ['1', 'true', 'yes'], true);
         }
 
-        $maintenanceMode = $_ENV['MAINTENANCE_MODE'] ?? 'false';
-        if ($maintenanceMode === 'true' || $maintenanceMode === '1' || $maintenanceMode === true) {
-            $currentRoute = Yii::$app->request->pathInfo;
+        $maintenanceRaw = getenv('MAINTENANCE_MODE');
+        $maintenanceMode = in_array(strtolower((string) $maintenanceRaw), ['1', 'true', 'yes'], true);
+        $currentRoute = trim((string) $request->pathInfo, '/');
+
+        if ($maintenanceMode) {
             if ($currentRoute !== 'maintenance' && $currentRoute !== 'site/maintenance') {
-                Yii::$app->response->redirect(['site/maintenance'])->send();
+                $response->redirect(['site/maintenance'])->send();
                 Yii::$app->end();
             }
         } else {
             // If not maintenance mode, but currently on maintenance page, redirect to home
-            $currentRoute = Yii::$app->request->pathInfo;
             if ($currentRoute === 'maintenance' || $currentRoute === 'site/maintenance') {
-                Yii::$app->response->redirect(['/'])->send();
+                $response->redirect(['/'])->send();
                 Yii::$app->end();
             }
         }
 
+        $apiClient = self::resolveApiClient();
+        if (!$apiClient instanceof ShopApiClientInterface) {
+            Yii::warning('Unable to preload shop context: API client component is missing or invalid.', __METHOD__);
+            return;
+        }
+
         try {
-            $merchantResponse = Yii::$app->diinapi->getMerchant($forceMerchantRefresh);
+            $merchantResponse = $apiClient->getMerchant($forceMerchantRefresh);
             $merchantData = (isset($merchantResponse['data']) && is_array($merchantResponse['data']))
                 ? $merchantResponse['data']
                 : [];
 
             Yii::$app->params['merchant'] = $merchantData;
             Yii::$app->params['merchantResponse'] = $merchantResponse;
-            Yii::$app->view->params['merchant'] = $merchantData;
+            if ($view !== null) {
+                $view->params['merchant'] = $merchantData;
+            }
         } catch (\Throwable $e) {
             Yii::warning('Unable to preload merchant context: ' . $e->getMessage(), __METHOD__);
             Yii::$app->params['merchant'] = Yii::$app->params['merchant'] ?? [];
             Yii::$app->params['merchantResponse'] = Yii::$app->params['merchantResponse'] ?? ['data' => []];
-            Yii::$app->view->params['merchant'] = Yii::$app->params['merchant'];
+            if ($view !== null) {
+                $view->params['merchant'] = Yii::$app->params['merchant'];
+            }
         }
 
         try {
-            $categoriesResponse = Yii::$app->diinapi->getCategories(null, $forceCategoriesRefresh);
+            $categoriesResponse = $apiClient->getCategories(null, $forceCategoriesRefresh);
             $categoriesData = (isset($categoriesResponse['data']) && is_array($categoriesResponse['data']))
                 ? $categoriesResponse['data']
                 : [];
 
             Yii::$app->params['categories'] = $categoriesData;
             Yii::$app->params['categoriesResponse'] = $categoriesResponse;
-            Yii::$app->view->params['categories'] = $categoriesData;
+            if ($view !== null) {
+                $view->params['categories'] = $categoriesData;
+            }
         } catch (\Throwable $e) {
             Yii::warning('Unable to preload categories context: ' . $e->getMessage(), __METHOD__);
             Yii::$app->params['categories'] = Yii::$app->params['categories'] ?? [];
             Yii::$app->params['categoriesResponse'] = Yii::$app->params['categoriesResponse'] ?? ['data' => []];
-            Yii::$app->view->params['categories'] = Yii::$app->params['categories'];
+            if ($view !== null) {
+                $view->params['categories'] = Yii::$app->params['categories'];
+            }
         }
+    }
+
+    private static function resolveApiClient(): ?ShopApiClientInterface
+    {
+        /** @var mixed $shopModule */
+        $shopModule = Yii::$app->getModule('shop', false);
+
+        if ($shopModule instanceof Module) {
+            try {
+                return $shopModule->getApiClient();
+            } catch (\Throwable $e) {
+                Yii::warning('Unable to resolve module API client: ' . $e->getMessage(), __METHOD__);
+            }
+        }
+
+        $fallback = Yii::$app->get('diinapi', false);
+        return $fallback instanceof ShopApiClientInterface ? $fallback : null;
     }
 }
