@@ -28,7 +28,7 @@ if (empty($relatedProducts)) {
                 <div class="col-md-6 col-lg-2">
                     <?= ProductCard::widget([
                         'product' => $relatedProduct,
-                        'variant' => ProductCard::VARIANT_MINIMAL,
+                        'variant' => Yii::$app->params['shop']['products']['cardVariant'] ?? ProductCard::VARIANT_DEFAULT,
                     ]) ?>
                 </div>
             <?php endforeach; ?>
