@@ -110,7 +110,7 @@ $moduleRoute = '/' . $moduleId;
             <div class="cart-button mb-3 d-flex">
                 <?= AddToCartButton::widget([
                     'productId' => $product['id'],
-                    'buttonClass' => 'btn btn-mode me-3 add-to-cart-btn',
+                    'buttonClass' => 'btn btn-primary me-3 add-to-cart-btn',
                     'gaItemData' => $gaItemPayload ?? [],
                     'gaCurrency' => 'HNL',
                 ]) ?>
