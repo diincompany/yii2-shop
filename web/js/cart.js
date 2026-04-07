@@ -523,7 +523,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="row align-items-center">
                         <div class="col-3">
                             <a href="${productViewUrl(item.product_id)}">
-                                <img src="${item.main_image || 'https://ik.imagekit.io/ready/diin/img/site/placeholder.png'}?tr=w-300,h-300" 
+                                <img src="${item.main_image || 'https://placehold.net/product.png'}?tr=w-300,h-300" 
                                      class="img-fluid" 
                                      alt="${escapeHtml(item.product_name || '')}">
                             </a>
@@ -597,7 +597,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 </div>
                 <div class="pt-4">
-                    <a href="${cartUrl}" class="btn btn-block btn-mode w-100">${t('View Cart', 'Ver Carrito')}</a>
+                    <a href="${cartUrl}" class="btn btn-block btn-primary w-100">${t('View Cart', 'Ver Carrito')}</a>
                 </div>
             `;
             offcanvasFooter.style.display = 'block';

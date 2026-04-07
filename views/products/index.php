@@ -172,7 +172,7 @@ ShopAsset::register($this);
                             <div class="col-12 col-sm-4 col-xl-3">
                                 <?= ProductCard::widget([
                                     'product' => $product,
-                                    'variant' => ProductCard::VARIANT_MINIMAL,
+                                    'variant' => Yii::$app->params['shop']['product']['cardVariant'] ?? ProductCard::VARIANT_DEFAULT,
                                 ]) ?>
                             </div>
                         <?php endforeach; ?>
