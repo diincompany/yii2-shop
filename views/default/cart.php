@@ -11,12 +11,14 @@
  * @var string $couponCode
  */
 
+use diincompany\shop\assets\ShopAsset;
 use yii\helpers\Html;
 use yii\helpers\Json;
 use yii\helpers\Url;
 
 $this->title = Yii::t('shop', 'shopping_cart');
 $this->params['breadcrumbs'][] = $this->title;
+ShopAsset::register($this);
 
 $module = Yii::$app->controller->module;
 $breadcrumbsView = is_object($module) && method_exists($module, 'getBreadcrumbsView')
@@ -50,6 +52,7 @@ if (class_exists($gaTrackerClass) && !empty($items)) {
 }
 ?>
 
+<div class="shop-module shop-cart-page">
 <!-- Cart Content -->
 <div class="py-6">
     <div class="container">
@@ -361,6 +364,7 @@ if (class_exists($gaTrackerClass) && !empty($items)) {
             </div>
         <?php endif; ?>
     </div>
+</div>
 </div>
 <!-- End Cart Content -->
 
