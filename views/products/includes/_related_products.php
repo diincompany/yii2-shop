@@ -18,17 +18,17 @@ if (empty($relatedProducts)) {
     <div class="container">
         <h4 class="mb-5 text-center text-uppercase fw-light"><?= Yii::t('shop', 'productos_relacionados') ?></h4>
         <div class="row g-4">
-            <?php foreach (array_slice($relatedProducts, 0, 6) as $relatedProduct): ?>
+            <?php foreach (array_slice($relatedProducts, 0, 4) as $relatedProduct): ?>
                 <?php
                 $slug = (string) ($relatedProduct['slug'] ?? '');
                 if ($slug === '') {
                     continue;
                 }
                 ?>
-                <div class="col-md-6 col-lg-2">
+                <div class="col-md-6 col-lg-3">
                     <?= ProductCard::widget([
                         'product' => $relatedProduct,
-                        'variant' => Yii::$app->params['shop']['products']['cardVariant'] ?? ProductCard::VARIANT_DEFAULT,
+                        'variant' => Yii::$app->params['shop']['product']['cardVariant'] ?? ProductCard::VARIANT_DEFAULT,
                     ]) ?>
                 </div>
             <?php endforeach; ?>
