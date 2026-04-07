@@ -1,4 +1,5 @@
 <?php
+use diincompany\shop\assets\ShopAsset;
 use diincompany\shop\widgets\SeoMeta;
 use yii\helpers\Html;
 use yii\helpers\Url;
@@ -21,8 +22,11 @@ echo SeoMeta::widget([
     'description' => Yii::t('shop', 'Browse our full collection organized by category.'),
     'breadcrumbs' => $this->params['breadcrumbs'] ?? [],
 ]);
+
+ShopAsset::register($this);
 ?>
 
+<div class="shop-module shop-category-page">
 <!-- Page Title -->
 <section class="section py-5 bg-light">
     <div class="container">
@@ -94,13 +98,4 @@ echo SeoMeta::widget([
         </div>
     </div>
 </section>
-
-<style>
-.hover-shadow-lg {
-    transition: all 0.3s ease;
-}
-.hover-shadow-lg:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 1rem 3rem rgba(0,0,0,.175)!important;
-}
-</style>
+</div>

@@ -21,8 +21,8 @@
 ?>
 
 <section class="pt-5 pb-6 pb-md-10">
-    <div class="container">
-        <div class="row">
+    <div class="container px-4 px-lg-5 my-5">
+        <div class="row gx-4 gx-lg-5 align-items-center">
             <?= $this->render('_product_gallery', [
                 'product' => $product,
                 'productImages' => $productImages,

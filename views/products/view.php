@@ -1,8 +1,11 @@
 <?php
+use diincompany\shop\assets\ProductAsset;
 use diincompany\shop\widgets\SeoMeta;
 use yii\helpers\Html;
 use yii\helpers\Json;
 use yii\helpers\Url;
+
+ProductAsset::register($this);
 
 $this->title = $product['name'];
 $moduleId = trim((string) (Yii::$app->controller->module->id ?? ''), '/');
@@ -221,7 +224,7 @@ if(!$mainImage && !empty($productImages)) {
     $mainImage = $productImages[0];
 }
 
-$imageUrl = ($mainImage['url'] ?? $product['main_image'] ?? 'https://ik.imagekit.io/ready/diin/img/site/placeholder.png');
+$imageUrl = ($mainImage['url'] ?? $product['main_image'] ?? 'https://placehold.net/product-600x800.png');
 
 $variantsForJs = [];
 $variantStocksById = [];
@@ -274,6 +277,7 @@ if (class_exists($gaTrackerClass)) {
     );
 }
 ?>
+<div class="shop-module shop-product-page">
 
 <?= $this->render('includes/_product_content', [
     'product' => $product,
@@ -295,10 +299,6 @@ if (class_exists($gaTrackerClass)) {
                 'gaItemPayload' => $gaItemPayload,
 ]) ?>
 
-<?= $this->render('includes/_product_tabs', [
-    'productDescription' => $productDescription,
-]) ?>
-
 <?= $this->render('includes/_related_products', [
     'relatedProducts' => $product['related_products'] ?? [],
 ]) ?>
@@ -306,3 +306,4 @@ if (class_exists($gaTrackerClass)) {
 <?= $this->render('includes/_variant_selector_script', [
     'variantsForJs' => $variantsForJs,
 ]) ?>
+</div>

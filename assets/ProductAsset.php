@@ -4,22 +4,28 @@ namespace diincompany\shop\assets;
 
 use yii\web\AssetBundle;
 
-class CartAsset extends AssetBundle
+class ProductAsset extends AssetBundle
 {
     public $sourcePath = __DIR__ . '/../web';
 
-    // Avoid stale published assets while iterating in development.
     public $publishOptions = [
         'forceCopy' => YII_ENV_DEV,
     ];
 
+    public $css = [
+        'vendor/swiper/swiper-bundle.min.css',
+        'vendor/magnific/magnific-popup.css',
+    ];
+
     public $js = [
-        'js/cart.js',
+        'vendor/swiper/swiper-bundle.min.js',
+        'vendor/magnific/jquery.magnific-popup.min.js',
+        'js/product-item.js',
     ];
 
     public $depends = [
         'diincompany\shop\assets\ShopAsset',
-        'yii\web\YiiAsset',
+        'yii\web\JqueryAsset',
         'yii\bootstrap5\BootstrapPluginAsset',
     ];
 }

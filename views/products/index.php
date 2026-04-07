@@ -1,4 +1,5 @@
 <?php
+use diincompany\shop\assets\ShopAsset;
 use diincompany\shop\widgets\product\ProductCard;
 use diincompany\shop\widgets\SeoMeta;
 use yii\helpers\Json;
@@ -84,8 +85,11 @@ if (class_exists($gaTrackerClass)) {
 $gaItemsByProductIdJson = Json::htmlEncode($gaItemsByProductId);
 $gaListIdJson = Json::htmlEncode($gaListId);
 $gaListNameJson = Json::htmlEncode($gaListName);
+
+ShopAsset::register($this);
 ?>
 
+<div class="shop-module shop-index-page">
 <!-- Shop Content -->
 <section class="section">
     <div class="container">
@@ -165,10 +169,10 @@ $gaListNameJson = Json::htmlEncode($gaListName);
                         </div>
                     <?php else: ?>
                         <?php foreach ($products as $product): ?>
-                            <div class="col-12 col-sm-6 col-xl-4">
+                            <div class="col-12 col-sm-4 col-xl-3">
                                 <?= ProductCard::widget([
                                     'product' => $product,
-                                    'variant' => ProductCard::VARIANT_DEFAULT,
+                                    'variant' => ProductCard::VARIANT_MINIMAL,
                                 ]) ?>
                             </div>
                         <?php endforeach; ?>
@@ -207,6 +211,7 @@ $gaListNameJson = Json::htmlEncode($gaListName);
         </div>
     </div>
 </section>
+</div>
 
 <?php
 $this->registerJs(<<<JS

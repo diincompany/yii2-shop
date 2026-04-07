@@ -37,7 +37,7 @@ $moduleRoute = '/' . $moduleId;
         <?php endif; ?>
 
         <div class="products-title mb-2">
-            <h4 class="h4"><?= Html::encode($product['name']) ?></h4>
+            <h1 class="display-5 fw-bolder"><?= Html::encode($product['name']) ?></h1>
         </div>
 
         <?php if ($isProductAvailable): ?>

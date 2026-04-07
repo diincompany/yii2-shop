@@ -1,9 +1,9 @@
 <a class="nav-link position-relative" data-bs-toggle="offcanvas" href="#modalMiniCart" role="button" aria-controls="modalMiniCart">
-    <i class="bi bi-cart"></i>
-    <?php if ($itemCount > 0): ?>
-        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-            <?= $itemCount ?>
-            <span class="visually-hidden"><?= Yii::t('shop', 'items in cart') ?></span>
-        </span>
-    <?php endif; ?>
+    <span class="cart-icon-wrapper position-relative d-inline-block">
+        <i class="bi bi-cart fs-3"></i>
+            <span class="badge rounded-pill bg-danger cart-badge">
+                <?= $itemCount ?>
+                <span class="visually-hidden"><?= Yii::t('shop', 'items in cart') ?></span>
+            </span>
+    </span>
 </a>
