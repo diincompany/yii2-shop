@@ -62,6 +62,16 @@ class DefaultController extends Controller
         return array_merge([$this->moduleRoute($route)], $params);
     }
 
+    private function buildCheckoutUrl(): string
+    {
+        return Yii::$app->urlManager->createAbsoluteUrl($this->moduleRouteParams('default/checkout'));
+    }
+
+    private function buildConfirmationUrl(string $hash): string
+    {
+        return Yii::$app->urlManager->createAbsoluteUrl($this->moduleRouteParams('default/confirmation', ['hash' => $hash]));
+    }
+
     /**
      * Hide internal API errors from end users while keeping friendly business errors.
      *
@@ -582,6 +592,7 @@ class DefaultController extends Controller
             $orderData = [
                 'session_id' => $sessionId,
                 'type' => 'cart',
+                'checkout_url' => $this->buildCheckoutUrl(),
                 'items' => $currentCart['items'] ?? [],
                 'comment' => $request->post('notes'),
                 'customer' => [
@@ -610,6 +621,28 @@ class DefaultController extends Controller
             
             if (isset($orderResponse['data'])) {
                 $orderId = (int) ($orderResponse['data']['id'] ?? $currentCart['id']);
+                $orderHash = (string) ($orderResponse['data']['hash'] ?? '');
+                $confirmationUrl = $orderHash !== '' ? $this->buildConfirmationUrl($orderHash) : null;
+
+                if ($confirmationUrl !== null) {
+                    $orderUrlSnapshotResponse = $diinApi->putOrder($orderId, [
+                        'type' => 'cart',
+                        'checkout_url' => $this->buildCheckoutUrl(),
+                        'confirmation_url' => $confirmationUrl,
+                    ]);
+
+                    if (isset($orderUrlSnapshotResponse['data'])) {
+                        $orderResponse = $orderUrlSnapshotResponse;
+                    } else {
+                        $this->logger()->warning('Failed to persist checkout/confirmation URLs on order snapshot', [
+                            'order_id' => $orderId,
+                            'checkout_url' => $this->buildCheckoutUrl(),
+                            'confirmation_url' => $confirmationUrl,
+                            'response' => $orderUrlSnapshotResponse,
+                        ]);
+                    }
+                }
+
                 $serviceLevel = trim((string) ($request->post('service_level')
                     ?? $orderResponse['data']['shipping']['service_level']
                     ?? $currentCart['shipping']['service_level']
@@ -670,7 +703,7 @@ class DefaultController extends Controller
                 // $diinApi->deleteOrder($cartId);
                 
                 // Get order hash/ID for payment
-                $orderHash = $orderResponse['data']['hash'] ?? '';
+                $orderHash = $orderResponse['data']['hash'] ?? $orderHash;
                 
                 // Log order data for debugging
                 $this->logger()->info('Order updated successfully', [

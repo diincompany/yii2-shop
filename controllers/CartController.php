@@ -40,6 +40,27 @@ class CartController extends Controller
         return $this->shopModule()->getSessionContext();
     }
 
+    private function moduleRoute(string $route = ''): string
+    {
+        $moduleId = trim($this->shopModule()->id, '/');
+
+        if ($route === '') {
+            return '/' . $moduleId;
+        }
+
+        return '/' . $moduleId . '/' . ltrim($route, '/');
+    }
+
+    private function moduleRouteParams(string $route = '', array $params = []): array
+    {
+        return array_merge([$this->moduleRoute($route)], $params);
+    }
+
+    private function buildCheckoutUrl(): string
+    {
+        return Yii::$app->urlManager->createAbsoluteUrl($this->moduleRouteParams('default/checkout'));
+    }
+
     /**
      * Get editable cart for current session.
      *
@@ -357,6 +378,7 @@ class CartController extends Controller
                 $payload = [
                     'session_id' => $sessionId,
                     'type' => 'cart',
+                    'checkout_url' => $this->buildCheckoutUrl(),
                     'items' => $items,
                 ];
 
@@ -370,6 +392,7 @@ class CartController extends Controller
                 $payload = [
                     'session_id' => $sessionId,
                     'type' => 'cart',
+                    'checkout_url' => $this->buildCheckoutUrl(),
                     'items' => []
                 ];
 
