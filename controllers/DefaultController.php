@@ -11,7 +11,6 @@ use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\web\Response;
 use yii\web\ServerErrorHttpException;
-use yii\helpers\VarDumper;
 
 /**
  * Default controller for the `store` module
@@ -686,7 +685,8 @@ class DefaultController extends Controller
                 
                 // Build payment URL with webhook and return URLs
                 $paymentUrl = "{$diinpayUrl}/p/{$orderHash}?"
-                    . "webhook_url=" . urlencode($webhookUrl)
+                    . "order_id=" . urlencode((string) ($orderResponse['data']['id'] ?? $orderId))
+                    . "&webhook_url=" . urlencode($webhookUrl)
                     . "&return_url=" . urlencode($returnUrl);
                 
                 return [
@@ -1634,4 +1634,3 @@ class DefaultController extends Controller
         }
     }
 }
-

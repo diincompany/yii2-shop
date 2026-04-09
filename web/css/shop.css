@@ -401,3 +401,63 @@
     color: rgba(var(--bs-body-color-rgb), 1);
     text-decoration: none;
 }
+
+.shop-module .shipping-provider-groups {
+    display: grid;
+    gap: 1rem;
+}
+
+.shop-module .shipping-provider-group {
+    border: 1px solid var(--shop-border-color);
+    border-radius: 0.9rem;
+    background: var(--bs-body-bg);
+    overflow: hidden;
+}
+
+.shop-module .shipping-provider-group__header {
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid var(--shop-border-color);
+    background: rgba(var(--bs-secondary-rgb), 0.06);
+}
+
+.shop-module .shipping-provider-group__brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.shop-module .shipping-provider-group__logo {
+    width: auto;
+    max-width: 110px;
+    height: 34px;
+    object-fit: contain;
+    object-position: left center;
+    display: block;
+}
+
+.shop-module .shipping-provider-group__title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--bs-emphasis-color);
+}
+
+.shop-module .shipping-provider-group__options .btn {
+    border: 0;
+    border-radius: 0;
+    border-bottom: 1px solid var(--shop-border-color);
+    text-align: left;
+}
+
+.shop-module .shipping-provider-group__options .btn:last-of-type {
+    border-bottom: 0;
+}
+
+.shop-module .shipping-option-label {
+    padding: 0.95rem 1rem;
+}
+
+.shop-module .shipping-option-label__price {
+    white-space: nowrap;
+    font-weight: 700;
+}
+
