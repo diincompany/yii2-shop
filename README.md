@@ -87,7 +87,7 @@ The module defines three contracts that the host application must satisfy:
 
 ### `ShopApiClientInterface` _(required)_
 
-Resolved via the `apiClientComponent` config key (default: `'diinapi'`). Must be a Yii application component implementing `diincompany\diinapi\contracts\ShopApiClientInterface`.
+Resolved via the `apiClientComponent` config key (default: `'diinapi'`). Must be a Yii application component implementing `diincompany\shop\contracts\ShopApiClientInterface`.
 
 If the configured component does not implement the contract, the module throws `yii\base\InvalidConfigException` with a descriptive message.
 
