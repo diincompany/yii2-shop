@@ -30,6 +30,7 @@ return array (
   'Card Number' => 'Número de Tarjeta',
   'Cart' => 'Carrito',
   'cart_not_found' => 'Carrito no encontrado',
+  'Cash On Delivery' => 'Pago contra entrega',
   'cash_on_delivery_available' => 'Pago contra entrega disponible',
   'cash_on_delivery_fee_label' => 'Recargo COD',
   'Categories' => 'Categorías',

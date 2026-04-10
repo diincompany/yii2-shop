@@ -125,7 +125,6 @@ $daysTextJson = json_encode(Yii::t('shop', 'days'));
 $discountTextJson = json_encode(Yii::t('shop', 'Discount'));
 $noShippingOptionsFallbackTextJson = json_encode(Yii::t('shop', 'shipping_options_unavailable_fallback'));
 $codAvailableTextJson = json_encode(Yii::t('shop', 'cash_on_delivery_available'));
-$codFeeLabelTextJson = json_encode(Yii::t('shop', 'cash_on_delivery_fee_label'));
 $initialServiceLevelJson = json_encode((string) ($shippingServiceLevel ?? ''));
 $initialProviderCodeJson = json_encode((string) (($persistedShipping['provider_code'] ?? '')));
 $initialShippingOptionJson = json_encode((array) ($persistedShipping ?? []));
@@ -152,7 +151,6 @@ $this->registerJs(<<<JS
         var discountText = $discountTextJson;
         var noShippingOptionsFallbackText = $noShippingOptionsFallbackTextJson;
         var codAvailableText = $codAvailableTextJson;
-        var codFeeLabelText = $codFeeLabelTextJson;
         var uiLang = (($('html').attr('lang') || 'es').toString().toLowerCase().indexOf('en') === 0) ? 'en' : 'es';
         var initialServiceLevel = ($initialServiceLevelJson || '').toString().trim();
         var initialProviderCode = ($initialProviderCodeJson || '').toString().trim();
@@ -732,15 +730,6 @@ $this->registerJs(<<<JS
                                 'class': 'badge rounded-pill text-bg-success-subtle text-success-emphasis border border-success-subtle me-2'
                             }).text(codAvailableText)
                         );
-
-                        var codCommissionText = formatCodCommissionPercent(option.__codMeta.cod_commission_percent);
-                        if (codCommissionText !== null) {
-                            codBadgeRow.append(
-                                $('<span>', {
-                                    'class': 'shipping-option-label__cod-fee'
-                                }).text(codFeeLabelText + ' ' + codCommissionText + '%')
-                            );
-                        }
 
                         left.append(codBadgeRow);
                     }

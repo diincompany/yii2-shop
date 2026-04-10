@@ -105,10 +105,14 @@ $formatAddress = static function (array $address) use ($firstNonEmpty): string {
 $shippingAddressText = $formatAddress($shippingAddress);
 $billingAddressText = $formatAddress($billingAddress);
 
-$gatewayCode = strtolower(trim((string) ($payment['gateway_code'] ?? $rawResponse['gateway'] ?? '')));
+$orderMetadata = is_array($order['metadata'] ?? null) ? $order['metadata'] : [];
+$orderPaymentMetadata = is_array($orderMetadata['payment'] ?? null) ? $orderMetadata['payment'] : [];
+$gatewayCode = strtolower(trim((string) ($payment['gateway_code'] ?? $rawResponse['gateway'] ?? $orderPaymentMetadata['gateway_code'] ?? $orderPaymentMetadata['gateway'] ?? '')));
 $paymentMethodText = Yii::t('shop', 'Credit Card');
 if ($gatewayCode !== '') {
-    if (strpos($gatewayCode, 'bank') !== false || strpos($gatewayCode, 'transfer') !== false) {
+    if (in_array($gatewayCode, ['cash_on_delivery', 'cashondelivery'], true)) {
+        $paymentMethodText = Yii::t('shop', 'Cash On Delivery');
+    } elseif (strpos($gatewayCode, 'bank') !== false || strpos($gatewayCode, 'transfer') !== false) {
         $paymentMethodText = Yii::t('shop', 'Bank Transfer');
     } elseif (strpos($gatewayCode, 'paypal') !== false) {
         $paymentMethodText = 'PayPal';
