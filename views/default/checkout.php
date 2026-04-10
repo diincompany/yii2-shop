@@ -20,8 +20,10 @@
 
 use yii\helpers\Json;
 use yii\helpers\Url;
+use diincompany\shop\assets\ShopAsset;
 
 $this->title = Yii::t('shop', 'checkout');
+ShopAsset::register($this);
 $module = Yii::$app->controller->module;
 $breadcrumbsView = is_object($module) && method_exists($module, 'getBreadcrumbsView')
     ? $module->getBreadcrumbsView()
@@ -48,51 +50,53 @@ if (class_exists($gaTrackerClass) && !empty($items)) {
 $this->params['breadcrumbs'][] = ['label' => Yii::t('shop', 'Cart'), 'url' => [$moduleRoute . '/cart']];
 $this->params['breadcrumbs'][] = $this->title;
 ?>
-<?php if (!empty($error)): ?>
-    <?= $this->render('includes/checkout/error-alert.php', [
-        'error' => $error,
-        'moduleRoute' => $moduleRoute,
-    ]) ?>
-<?php endif; ?>
-
-<?php if (empty($error)): ?>
-    <?php if (!empty($items)): ?>
-        <div class="py-6">
-            <div class="container">
-                <div class="row flex-row-reverse">
-                    <div class="col-lg-5 ps-lg-5">
-                        <?= $this->render('includes/checkout/order-summary.php', [
-                            'items' => $items,
-                            'subtotal' => $subtotal,
-                            'taxes' => $taxes,
-                            'discountAmount' => $discountAmount,
-                            'shipping' => $shipping,
-                            'grandTotal' => $grandTotal,
-                            'couponCode' => $couponCode,
-                            'moduleRoute' => $moduleRoute,
-                        ]) ?>
-                    </div>
-
-                    <div class="col-lg-7">
-                        <?= $this->render('includes/checkout/form.php', [
-                            'countries' => $countries,
-                            'shippingAddress' => $shippingAddress ?? [],
-                            'billingAddress' => $billingAddress ?? [],
-                            'orderNotes' => $orderNotes ?? '',
-                            'shippingServiceLevel' => $shippingServiceLevel ?? '',
-                            'shipping' => $shipping ?? 0,
-                            'moduleRoute' => $moduleRoute,
-                        ]) ?>
-                    </div>
-                </div>
-            </div>
-        </div>
-    <?php else: ?>
-        <?= $this->render('includes/checkout/empty-cart.php', [
+<div class="shop-module shop-checkout-page">
+    <?php if (!empty($error)): ?>
+        <?= $this->render('includes/checkout/error-alert.php', [
+            'error' => $error,
             'moduleRoute' => $moduleRoute,
         ]) ?>
     <?php endif; ?>
-<?php endif; ?>
+
+    <?php if (empty($error)): ?>
+        <?php if (!empty($items)): ?>
+            <div class="py-6">
+                <div class="container">
+                    <div class="row flex-row-reverse">
+                        <div class="col-lg-5 ps-lg-5">
+                            <?= $this->render('includes/checkout/order-summary.php', [
+                                'items' => $items,
+                                'subtotal' => $subtotal,
+                                'taxes' => $taxes,
+                                'discountAmount' => $discountAmount,
+                                'shipping' => $shipping,
+                                'grandTotal' => $grandTotal,
+                                'couponCode' => $couponCode,
+                                'moduleRoute' => $moduleRoute,
+                            ]) ?>
+                        </div>
+
+                        <div class="col-lg-7">
+                            <?= $this->render('includes/checkout/form.php', [
+                                'countries' => $countries,
+                                'shippingAddress' => $shippingAddress ?? [],
+                                'billingAddress' => $billingAddress ?? [],
+                                'orderNotes' => $orderNotes ?? '',
+                                'shippingServiceLevel' => $shippingServiceLevel ?? '',
+                                'shipping' => $shipping ?? 0,
+                                'moduleRoute' => $moduleRoute,
+                            ]) ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php else: ?>
+            <?= $this->render('includes/checkout/empty-cart.php', [
+                'moduleRoute' => $moduleRoute,
+            ]) ?>
+        <?php endif; ?>
+    <?php endif; ?>
+</div>
 
 <?php if (empty($error) && !empty($items)): ?>
 <?php
@@ -120,6 +124,7 @@ $confirmRemoveItemJson = json_encode(Yii::t('shop', 'confirm_remove_item'));
 $daysTextJson = json_encode(Yii::t('shop', 'days'));
 $discountTextJson = json_encode(Yii::t('shop', 'Discount'));
 $noShippingOptionsFallbackTextJson = json_encode(Yii::t('shop', 'shipping_options_unavailable_fallback'));
+$codAvailableTextJson = json_encode(Yii::t('shop', 'cash_on_delivery_available'));
 $initialServiceLevelJson = json_encode((string) ($shippingServiceLevel ?? ''));
 $initialProviderCodeJson = json_encode((string) (($persistedShipping['provider_code'] ?? '')));
 $initialShippingOptionJson = json_encode((array) ($persistedShipping ?? []));
@@ -145,15 +150,71 @@ $this->registerJs(<<<JS
         var daysText = $daysTextJson;
         var discountText = $discountTextJson;
         var noShippingOptionsFallbackText = $noShippingOptionsFallbackTextJson;
+        var codAvailableText = $codAvailableTextJson;
         var uiLang = (($('html').attr('lang') || 'es').toString().toLowerCase().indexOf('en') === 0) ? 'en' : 'es';
         var initialServiceLevel = ($initialServiceLevelJson || '').toString().trim();
         var initialProviderCode = ($initialProviderCodeJson || '').toString().trim();
         var initialShippingOption = $initialShippingOptionJson || {};
         var initialSelectedOption = $initialSelectedOptionJson || {};
         var gaCheckoutItems = $gaCheckoutItemsJson || [];
+        var shippingOptionsRequestSeq = 0;
+
+        if (initialServiceLevel !== '') {
+            $('[name="service_level"]').val(initialServiceLevel);
+        }
+
+        if (initialProviderCode !== '') {
+            $('[name="provider_code"]').val(initialProviderCode);
+        }
 
         if (initialSelectedOption && Object.keys(initialSelectedOption).length > 0) {
             $('[name="selected_option"]').val(JSON.stringify(initialSelectedOption));
+        }
+
+        function getCurrentShippingSelection() {
+            var selectedOptionRaw = $.trim(($('[name="selected_option"]').val() || '').toString());
+            var parsedSelectedOption = null;
+
+            if (selectedOptionRaw !== '') {
+                try {
+                    parsedSelectedOption = JSON.parse(selectedOptionRaw);
+                } catch (error) {
+                    console.warn('Unable to parse current selected_option payload', error);
+                }
+            }
+
+            return {
+                provider_code: $.trim(($('[name="provider_code"]').val() || '').toString()),
+                service_level: $.trim(($('[name="service_level"]').val() || '').toString()),
+                selected_option: parsedSelectedOption
+            };
+        }
+
+        function matchesSelectedCourier(optionPayload, currentSelection) {
+            if (!currentSelection || !currentSelection.selected_option || typeof currentSelection.selected_option !== 'object') {
+                return false;
+            }
+
+            var currentCourier = currentSelection.selected_option.selected_option || currentSelection.selected_option;
+            var optionCourier = optionPayload && optionPayload.selected_option && typeof optionPayload.selected_option === 'object'
+                ? optionPayload.selected_option
+                : {};
+            var currentCourierId = (currentCourier.id || currentCourier.courier_id || '').toString().trim();
+            var optionCourierId = (optionCourier.id || optionCourier.courier_id || '').toString().trim();
+
+            if (currentCourierId !== '' && optionCourierId !== '') {
+                return currentCourierId === optionCourierId;
+            }
+
+            var currentCourierName = (currentCourier.name || currentCourier.courier_name || '').toString().trim().toLowerCase();
+            var optionCourierName = (optionCourier.name || optionCourier.courier_name || '').toString().trim().toLowerCase();
+            var currentDeliveryType = (currentCourier.delivery_type || currentCourier.courier_delivery_type || '').toString().trim().toLowerCase();
+            var optionDeliveryType = (optionCourier.delivery_type || optionCourier.courier_delivery_type || '').toString().trim().toLowerCase();
+
+            return currentCourierName !== ''
+                && optionCourierName !== ''
+                && currentCourierName === optionCourierName
+                && currentDeliveryType === optionDeliveryType;
         }
 
         function updateCheckoutTotals(order) {
@@ -293,6 +354,7 @@ $this->registerJs(<<<JS
         }
 
         function getShippingOptions(countryId, stateId, cityId) {
+            var requestId = ++shippingOptionsRequestSeq;
             var payload = {
                 country_id: countryId,
                 state_id: stateId,
@@ -337,6 +399,14 @@ $this->registerJs(<<<JS
 
             $.ajax(ajaxSettings)
                 .done(function(response) {
+                    if (requestId !== shippingOptionsRequestSeq) {
+                        console.log('Ignoring stale shipping options response', {
+                            requestId: requestId,
+                            latestRequestId: shippingOptionsRequestSeq
+                        });
+                        return;
+                    }
+
                     console.log('get-shipping-options response:', response);
                     var data = (response && response.data) ? response.data : {};
                     var options = [];
@@ -386,6 +456,107 @@ $this->registerJs(<<<JS
             return 'standard';
         }
 
+        function buildProviderGroups(providerGroups, normalizedOptions) {
+            var groupsByCode = {};
+
+            (Array.isArray(providerGroups) ? providerGroups : []).forEach(function(providerGroup) {
+                var providerCode = (providerGroup.provider_code || '').toString().toLowerCase().trim();
+
+                if (providerCode === '') {
+                    return;
+                }
+
+                groupsByCode[providerCode] = {
+                    provider_code: providerCode,
+                    provider_name: (providerGroup.provider_name || providerCode || 'Proveedor').toString(),
+                    logo_url: (providerGroup.logo_url || providerGroup.provider_logo_url || providerGroup.img_logo_url || '').toString(),
+                    options: []
+                };
+            });
+
+            normalizedOptions.forEach(function(option) {
+                var providerCode = (option.provider_code || 'standard').toString().toLowerCase().trim();
+
+                if (!groupsByCode[providerCode]) {
+                    groupsByCode[providerCode] = {
+                        provider_code: providerCode,
+                        provider_name: (option.provider_name || providerCode || 'Proveedor').toString(),
+                        logo_url: (option.provider_logo_url || '').toString(),
+                        options: []
+                    };
+                }
+
+                if (!groupsByCode[providerCode].logo_url && option.provider_logo_url) {
+                    groupsByCode[providerCode].logo_url = option.provider_logo_url.toString();
+                }
+
+                groupsByCode[providerCode].options.push(option);
+            });
+
+            return Object.keys(groupsByCode).map(function(providerCode) {
+                return groupsByCode[providerCode];
+            }).sort(function(a, b) {
+                return a.provider_name.localeCompare(b.provider_name);
+            });
+        }
+
+        function formatCodCommissionPercent(value) {
+            var parsed = parseFloat(value);
+
+            if (!Number.isFinite(parsed) || parsed <= 0) {
+                return null;
+            }
+
+            if (Math.abs(parsed - Math.round(parsed)) < 0.0001) {
+                return Math.round(parsed).toString();
+            }
+
+            return parsed.toFixed(2).replace(/\.?0+$/, '');
+        }
+
+        function buildCodMeta(option) {
+            var selectedOption = option && option.selected_option && typeof option.selected_option === 'object'
+                ? option.selected_option
+                : {};
+            var rawSupportsCod = selectedOption.supports_cod;
+
+            if (typeof rawSupportsCod === 'undefined' || rawSupportsCod === null) {
+                rawSupportsCod = option.supports_cod;
+            }
+
+            var rawCommission = selectedOption.cod_commission_percent;
+
+            if (typeof rawCommission === 'undefined' || rawCommission === null || rawCommission === '') {
+                rawCommission = selectedOption.client_cod_commission;
+            }
+
+            if (typeof rawCommission === 'undefined' || rawCommission === null || rawCommission === '') {
+                rawCommission = option.cod_commission_percent;
+            }
+
+            if (typeof rawCommission === 'undefined' || rawCommission === null || rawCommission === '') {
+                rawCommission = option.client_cod_commission;
+            }
+
+            var parsedCommission = parseFloat(rawCommission);
+            var supportsCod = false;
+
+            if (typeof rawSupportsCod !== 'undefined' && rawSupportsCod !== null && rawSupportsCod !== '') {
+                if (typeof rawSupportsCod === 'boolean') {
+                    supportsCod = rawSupportsCod;
+                } else {
+                    supportsCod = ['1', 'true', 'yes'].indexOf(rawSupportsCod.toString().toLowerCase()) !== -1;
+                }
+            } else if (Number.isFinite(parsedCommission) && parsedCommission > 0) {
+                supportsCod = true;
+            }
+
+            return {
+                supports_cod: supportsCod,
+                cod_commission_percent: Number.isFinite(parsedCommission) ? parsedCommission : null
+            };
+        }
+
         function displayShippingOptions(data, options, currency) {
             console.log('displayShippingOptions called with', options.length, 'options and currency:', currency);
             console.log('Full options data:', JSON.stringify(options, null, 2));
@@ -414,7 +585,8 @@ $this->registerJs(<<<JS
                     providerOptions.forEach(function(option) {
                         var baseOption = $.extend({}, option, {
                             provider_code: option.provider_code || providerCode,
-                            provider_name: option.provider_name || providerName
+                            provider_name: option.provider_name || providerName,
+                            provider_logo_url: option.provider_logo_url || providerGroup.logo_url || providerGroup.provider_logo_url || providerGroup.img_logo_url || null
                         });
 
                         var couriers = Array.isArray(baseOption.courier_options) ? baseOption.courier_options : [];
@@ -423,9 +595,14 @@ $this->registerJs(<<<JS
                         if (couriers.length > 0 && !hasCourierSelected) {
                             couriers.forEach(function(courier) {
                                 var courierCost = parseFloat(courier.client_price || courier.shipping_cost || baseOption.shipping_cost || 0);
+                                var courierCodMeta = buildCodMeta($.extend({}, baseOption, {
+                                    selected_option: courier
+                                }));
                                 normalizedOptions.push($.extend({}, baseOption, {
                                     service_level: deliveryTypeToServiceLevel(courier.delivery_type),
                                     shipping_cost: courierCost,
+                                    supports_cod: courierCodMeta.supports_cod,
+                                    cod_commission_percent: courierCodMeta.cod_commission_percent,
                                     selected_option: {
                                         id: courier.id || null,
                                         courier_id: courier.id || null,
@@ -435,7 +612,10 @@ $this->registerJs(<<<JS
                                         courier_delivery_type: courier.delivery_type || null,
                                         client_price: courierCost,
                                         shipping_cost: courierCost,
-                                        service_level: deliveryTypeToServiceLevel(courier.delivery_type)
+                                        service_level: deliveryTypeToServiceLevel(courier.delivery_type),
+                                        supports_cod: courierCodMeta.supports_cod,
+                                        cod_commission_percent: courierCodMeta.cod_commission_percent,
+                                        client_cod_commission: courierCodMeta.cod_commission_percent
                                     },
                                     courier_name: courier.name || null,
                                     courier_delivery_type: courier.delivery_type || null
@@ -450,28 +630,56 @@ $this->registerJs(<<<JS
                 normalizedOptions = options.map(function(option) {
                     return $.extend({}, option, {
                         provider_code: option.provider_code || 'standard',
-                        provider_name: option.provider_name || ((option.provider_code || 'standard').toString().toUpperCase())
+                        provider_name: option.provider_name || ((option.provider_code || 'standard').toString().toUpperCase()),
+                        provider_logo_url: option.provider_logo_url || null
                     });
                 });
             }
 
-            var group = $('<div>', {
-                'class': 'btn-group-vertical w-100',
-                'role': 'group'
-            });
+            var currentSelection = getCurrentShippingSelection();
+            var effectiveProviderCode = currentSelection.provider_code || initialProviderCode;
+            var effectiveServiceLevel = currentSelection.service_level || initialServiceLevel;
             var selectedIndex = 0;
+            var matchedIndex = normalizedOptions.findIndex(function(option) {
+                var optionProviderCode = ((option.provider_code || '').toString().trim());
+                var optionServiceLevel = ((option.service_level || '').toString().trim());
+                var providerMatch = !effectiveProviderCode || optionProviderCode === effectiveProviderCode;
+                var levelMatch = !effectiveServiceLevel || optionServiceLevel === effectiveServiceLevel;
 
-            if (initialServiceLevel || initialProviderCode) {
-                var matchedIndex = normalizedOptions.findIndex(function(option) {
-                    var levelMatch = !initialServiceLevel || ((option.service_level || '').toString().trim() === initialServiceLevel);
-                    var providerMatch = !initialProviderCode || ((option.provider_code || '').toString().trim() === initialProviderCode);
+                if (!providerMatch || !levelMatch) {
+                    return false;
+                }
+
+                if (matchesSelectedCourier(option, currentSelection)) {
+                    return true;
+                }
+
+                return !currentSelection.selected_option;
+            });
+
+            if (matchedIndex < 0 && effectiveProviderCode) {
+                matchedIndex = normalizedOptions.findIndex(function(option) {
+                    return ((option.provider_code || '').toString().trim()) === effectiveProviderCode
+                        && matchesSelectedCourier(option, currentSelection);
+                });
+            }
+
+            if (matchedIndex < 0 && (effectiveServiceLevel || effectiveProviderCode)) {
+                matchedIndex = normalizedOptions.findIndex(function(option) {
+                    var levelMatch = !effectiveServiceLevel || ((option.service_level || '').toString().trim() === effectiveServiceLevel);
+                    var providerMatch = !effectiveProviderCode || ((option.provider_code || '').toString().trim() === effectiveProviderCode);
                     return levelMatch && providerMatch;
                 });
-
-                if (matchedIndex >= 0) {
-                    selectedIndex = matchedIndex;
-                }
             }
+
+            if (matchedIndex >= 0) {
+                selectedIndex = matchedIndex;
+            }
+
+            var groupedProviders = buildProviderGroups(providers, normalizedOptions);
+            var optionsMarkup = $('<div>', {
+                'class': 'shipping-provider-groups'
+            });
 
             normalizedOptions.forEach(function(option, index) {
                 console.log('Processing option ' + index + ':', {
@@ -480,8 +688,7 @@ $this->registerJs(<<<JS
                     shipping_cost: option.shipping_cost,
                     free_shipping: option.free_shipping
                 });
-                
-                var isSelected = index === selectedIndex ? ' checked' : '';
+
                 var daysDisplay = '';
                 var providerCode = (option.provider_code || '').toString().toLowerCase().trim();
                 var shouldShowEstimatedDays = providerCode !== 'boxful';
@@ -520,47 +727,116 @@ $this->registerJs(<<<JS
                         delivery_type_label_en: deliveryLabelEn || null,
                         client_price: option.shipping_cost || 0,
                         shipping_cost: option.shipping_cost || 0,
-                        service_level: option.service_level || null
+                        service_level: option.service_level || null,
+                        supports_cod: option.supports_cod || false,
+                        cod_commission_percent: option.cod_commission_percent || null,
+                        client_cod_commission: option.cod_commission_percent || null
                     },
-                    courier_options: option.courier_options || []
+                    courier_options: option.courier_options || [],
+                    supports_cod: option.supports_cod || false,
+                    cod_commission_percent: option.cod_commission_percent || null,
+                    client_cod_commission: option.cod_commission_percent || null
                 };
-                
-                var inputId = 'shipping_' + index;
-                var radio = $('<input>', {
-                    type: 'radio',
-                    'class': 'btn-check shipping-option',
-                    name: 'shipping_option',
-                    value: option.service_level,
-                    id: inputId,
-                    'data-provider-code': option.provider_code || '',
-                    'data-service-level': option.service_level,
-                    'data-shipping-cost': option.shipping_cost
-                });
-
-                if (index === selectedIndex) {
-                    radio.prop('checked', true);
-                }
-
-                radio.data('selected-option', selectedPayload);
-
-                var label = $('<label>', {
-                    'class': 'btn btn-outline-primary w-100 text-start',
-                    'for': inputId
-                });
-                var row = $('<div>', {
-                    'class': 'd-flex justify-content-between align-items-center'
-                });
-                var left = $('<span>');
-                left.append($('<strong>').text(providerName));
-                left.append(document.createTextNode(' - ' + optionTitle + daysDisplay));
-                var right = $('<span>').text(costText);
-
-                row.append(left, right);
-                label.append(row);
-                group.append(radio, label);
+                option.__selectedPayload = selectedPayload;
+                option.__title = optionTitle;
+                option.__daysDisplay = daysDisplay;
+                option.__costText = costText;
+                option.__codMeta = buildCodMeta(option);
+                option.__isSelected = index === selectedIndex;
             });
 
-            container.empty().append(group);
+            groupedProviders.forEach(function(providerGroup, providerIndex) {
+                var providerOptions = Array.isArray(providerGroup.options) ? providerGroup.options : [];
+
+                if (providerOptions.length === 0) {
+                    return;
+                }
+
+                var providerBlock = $('<div>', {
+                    'class': 'shipping-provider-group'
+                });
+                var providerHeader = $('<div>', {
+                    'class': 'shipping-provider-group__header'
+                });
+                var providerBrand = $('<div>', {
+                    'class': 'shipping-provider-group__brand'
+                });
+                var providerLogoUrl = (providerGroup.logo_url || providerOptions[0].provider_logo_url || '').toString().trim();
+
+                if (providerLogoUrl !== '') {
+                    providerBrand.append($('<img>', {
+                        src: providerLogoUrl,
+                        alt: providerGroup.provider_name,
+                        'class': 'shipping-provider-group__logo'
+                    }));
+                }
+
+                providerBrand.append($('<span>', {
+                    'class': 'shipping-provider-group__title'
+                }));
+                providerHeader.append(providerBrand);
+                providerBlock.append(providerHeader);
+
+                var providerOptionGroup = $('<div>', {
+                    'class': 'btn-group-vertical w-100 shipping-provider-group__options',
+                    'role': 'group'
+                });
+
+                providerOptions.forEach(function(option, optionIndex) {
+                    var globalIndex = normalizedOptions.indexOf(option);
+                    var inputId = 'shipping_' + providerIndex + '_' + optionIndex + '_' + globalIndex;
+                    var radio = $('<input>', {
+                        type: 'radio',
+                        'class': 'btn-check shipping-option',
+                        name: 'shipping_option',
+                        value: option.service_level,
+                        id: inputId,
+                        'data-provider-code': option.provider_code || '',
+                        'data-service-level': option.service_level,
+                        'data-shipping-cost': option.shipping_cost
+                    });
+
+                    if (option.__isSelected) {
+                        radio.prop('checked', true);
+                    }
+
+                    radio.data('selected-option', option.__selectedPayload);
+
+                    var label = $('<label>', {
+                        'class': 'btn btn-outline-primary w-100 text-start shipping-option-label',
+                        'for': inputId
+                    });
+                    var row = $('<div>', {
+                        'class': 'd-flex justify-content-between align-items-center gap-3 w-100'
+                    });
+                    var left = $('<div>');
+                    left.append($('<strong>').text(option.__title + option.__daysDisplay));
+                    if (option.__codMeta && option.__codMeta.supports_cod) {
+                        var codBadgeRow = $('<div>', {
+                            'class': 'small text-muted mt-1'
+                        });
+                        codBadgeRow.append(
+                            $('<span>', {
+                                'class': 'badge rounded-pill text-bg-success-subtle text-success-emphasis border border-success-subtle me-2'
+                            }).text(codAvailableText)
+                        );
+
+                        left.append(codBadgeRow);
+                    }
+                    var right = $('<div>', {
+                        'class': 'shipping-option-label__price'
+                    }).text(option.__costText);
+
+                    row.append(left, right);
+                    label.append(row);
+                    providerOptionGroup.append(radio, label);
+                });
+
+                providerBlock.append(providerOptionGroup);
+                optionsMarkup.append(providerBlock);
+            });
+
+            container.empty().append(optionsMarkup);
             $('#shipping-options-section').removeClass('d-none');
 
             // Bind change event to shipping options
@@ -591,7 +867,10 @@ $this->registerJs(<<<JS
                         warehouse_id: selectedOption.warehouse_id || null,
                         warehouse_name: selectedOption.warehouse_name || null,
                         selected_option: selectedOption.selected_option || null,
-                        courier_options: selectedOption.courier_options || []
+                        courier_options: selectedOption.courier_options || [],
+                        supports_cod: selectedOption.supports_cod || false,
+                        cod_commission_percent: selectedOption.cod_commission_percent || null,
+                        client_cod_commission: selectedOption.cod_commission_percent || null
                     }
                 );
             }

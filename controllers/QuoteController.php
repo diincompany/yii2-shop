@@ -2,7 +2,7 @@
 
 namespace diincompany\shop\controllers;
 
-use diincompany\shop\contracts\ShopApiClientInterface;
+use diincompany\diinapi\contracts\ShopApiClientInterface;
 use diincompany\shop\contracts\ShopLoggerInterface;
 use diincompany\shop\Module as ShopModule;
 use diincompany\shop\models\QuoteForm;

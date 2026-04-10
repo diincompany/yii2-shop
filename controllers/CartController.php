@@ -1,7 +1,7 @@
 <?php
 namespace diincompany\shop\controllers;
 
-use diincompany\shop\contracts\ShopApiClientInterface;
+use diincompany\diinapi\contracts\ShopApiClientInterface;
 use diincompany\shop\contracts\ShopLoggerInterface;
 use diincompany\shop\contracts\ShopSessionContextInterface;
 use diincompany\shop\Module as ShopModule;
@@ -38,6 +38,27 @@ class CartController extends Controller
     private function sessionContext(): ShopSessionContextInterface
     {
         return $this->shopModule()->getSessionContext();
+    }
+
+    private function moduleRoute(string $route = ''): string
+    {
+        $moduleId = trim($this->shopModule()->id, '/');
+
+        if ($route === '') {
+            return '/' . $moduleId;
+        }
+
+        return '/' . $moduleId . '/' . ltrim($route, '/');
+    }
+
+    private function moduleRouteParams(string $route = '', array $params = []): array
+    {
+        return array_merge([$this->moduleRoute($route)], $params);
+    }
+
+    private function buildCheckoutUrl(): string
+    {
+        return Yii::$app->urlManager->createAbsoluteUrl($this->moduleRouteParams('default/checkout'));
     }
 
     /**
@@ -357,6 +378,7 @@ class CartController extends Controller
                 $payload = [
                     'session_id' => $sessionId,
                     'type' => 'cart',
+                    'checkout_url' => $this->buildCheckoutUrl(),
                     'items' => $items,
                 ];
 
@@ -370,6 +392,7 @@ class CartController extends Controller
                 $payload = [
                     'session_id' => $sessionId,
                     'type' => 'cart',
+                    'checkout_url' => $this->buildCheckoutUrl(),
                     'items' => []
                 ];
 

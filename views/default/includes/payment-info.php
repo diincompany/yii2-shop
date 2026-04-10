@@ -6,6 +6,8 @@
  */
 
 use yii\helpers\Html;
+use yii\helpers\VarDumper;
+
 ?>
 
 <?php
@@ -25,6 +27,8 @@ if (!is_array($rawResponse)) {
     $rawResponse = [];
 }
 
+$orderMetadata = is_array($order['metadata'] ?? null) ? $order['metadata'] : [];
+$orderPaymentMetadata = is_array($orderMetadata['payment'] ?? null) ? $orderMetadata['payment'] : [];
 $paymentStatusRaw = strtolower(trim((string) ($payment['status'] ?? '')));
 $isPaid = in_array($paymentStatusRaw, ['1', 'paid', 'success'], true)
     || !empty($payment['paid_at'])
@@ -42,12 +46,15 @@ $statusText = $isPaid
 $statusClass = $isPaid ? 'bg-success' : 'bg-warning text-dark';
 $statusIcon = $isPaid ? 'bi-check-circle' : 'bi-hourglass-split';
 
-$gatewayCode = strtolower(trim((string) ($payment['gateway_code'] ?? $rawResponse['gateway'] ?? '')));
+$gatewayCode = strtolower(trim((string) ($payment['gateway_code'] ?? $rawResponse['gateway'] ?? $orderPaymentMetadata['gateway_code'] ?? $orderPaymentMetadata['gateway'] ?? '')));
 $paymentMethodIcon = 'bi-credit-card';
 $paymentMethodText = Yii::t('shop', 'Credit Card');
 
 if ($gatewayCode !== '') {
-    if (strpos($gatewayCode, 'bank') !== false || strpos($gatewayCode, 'transfer') !== false) {
+    if (in_array($gatewayCode, ['cash_on_delivery', 'cashondelivery'], true)) {
+        $paymentMethodIcon = 'bi-cash-coin';
+        $paymentMethodText = Yii::t('shop', 'Cash On Delivery');
+    } elseif (strpos($gatewayCode, 'bank') !== false || strpos($gatewayCode, 'transfer') !== false) {
         $paymentMethodIcon = 'bi-bank';
         $paymentMethodText = Yii::t('shop', 'Bank Transfer');
     } elseif (strpos($gatewayCode, 'paypal') !== false) {
