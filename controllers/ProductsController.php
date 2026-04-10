@@ -5,7 +5,7 @@ namespace diincompany\shop\controllers;
 use Yii;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
-use diincompany\shop\contracts\ShopApiClientInterface;
+use diincompany\diinapi\contracts\ShopApiClientInterface;
 use diincompany\shop\Module as ShopModule;
 
 /**

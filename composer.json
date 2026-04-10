@@ -12,6 +12,7 @@
   "require": {
     "php": ">=7.4",
     "yiisoft/yii2": "~2.0.45",
+    "diincompany/yii2-diinapi": "*",
     "guzzlehttp/guzzle": "^7.0 || ^8.0",
     "ramsey/uuid": "^4.0 || ^5.0",
     "mpdf/mpdf": "^8.2",
@@ -26,6 +27,10 @@
     {
       "type": "vcs",
       "url": "https://github.com/diincompany/yii2-google-analytics.git"
+    },
+    {
+      "type": "vcs",
+      "url": "https://github.com/diincompany/yii2-diinapi.git"
     }
   ],
   "support": {

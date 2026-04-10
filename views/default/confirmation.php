@@ -30,7 +30,9 @@ $this->title = Yii::t('shop', 'Order Confirmation');
             $rawResponse = [];
         }
 
-        $gatewayCode = strtolower(trim((string) ($payment['gateway_code'] ?? $rawResponse['gateway'] ?? '')));
+        $orderMetadata = is_array($order['metadata'] ?? null) ? $order['metadata'] : [];
+        $orderPaymentMetadata = is_array($orderMetadata['payment'] ?? null) ? $order['metadata']['payment'] : [];
+        $gatewayCode = strtolower(trim((string) ($payment['gateway_code'] ?? $rawResponse['gateway'] ?? $orderPaymentMetadata['gateway_code'] ?? $orderPaymentMetadata['gateway'] ?? '')));
         $hasBankAccounts = is_array($rawResponse['bank_accounts'] ?? null) && !empty($rawResponse['bank_accounts']);
         $isBankTransfer = (
             $gatewayCode !== ''

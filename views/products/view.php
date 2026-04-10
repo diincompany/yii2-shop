@@ -2,7 +2,6 @@
 use diincompany\shop\assets\ProductAsset;
 use diincompany\shop\widgets\SeoMeta;
 use yii\helpers\Html;
-use yii\helpers\Json;
 use yii\helpers\Url;
 
 ProductAsset::register($this);
@@ -15,7 +14,9 @@ if ($moduleId === '' || $moduleId === Yii::$app->id) {
 $moduleRoute = '/' . $moduleId;
 
 $this->params['breadcrumbs'][] = ['label' => Yii::t('shop','Tienda'), 'url' => [$moduleRoute]];
-$this->params['breadcrumbs'][] = ['label' => $product['category'] ? $product['category']['name'] : null, 'url' => $product['category'] ? [$moduleRoute . '/category/' . $product['category']['slug']] : null];
+if($product['category'] ?? null) {
+    $this->params['breadcrumbs'][] = ['label' => $product['category'] ? $product['category']['name'] : null, 'url' => $product['category'] ? [$moduleRoute . '/category/' . $product['category']['slug']] : null];
+}
 $this->params['breadcrumbs'][] = $this->title;
 
 $productDescriptionRaw = (string)($product['description'] ?? '');

@@ -3,7 +3,7 @@
 namespace diincompany\shop\events;
 
 use diincompany\shop\Module;
-use diincompany\shop\contracts\ShopApiClientInterface;
+use diincompany\diinapi\contracts\ShopApiClientInterface;
 use Yii;
 use yii\base\Event;
 

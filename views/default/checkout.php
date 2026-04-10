@@ -157,9 +157,64 @@ $this->registerJs(<<<JS
         var initialShippingOption = $initialShippingOptionJson || {};
         var initialSelectedOption = $initialSelectedOptionJson || {};
         var gaCheckoutItems = $gaCheckoutItemsJson || [];
+        var shippingOptionsRequestSeq = 0;
+
+        if (initialServiceLevel !== '') {
+            $('[name="service_level"]').val(initialServiceLevel);
+        }
+
+        if (initialProviderCode !== '') {
+            $('[name="provider_code"]').val(initialProviderCode);
+        }
 
         if (initialSelectedOption && Object.keys(initialSelectedOption).length > 0) {
             $('[name="selected_option"]').val(JSON.stringify(initialSelectedOption));
+        }
+
+        function getCurrentShippingSelection() {
+            var selectedOptionRaw = $.trim(($('[name="selected_option"]').val() || '').toString());
+            var parsedSelectedOption = null;
+
+            if (selectedOptionRaw !== '') {
+                try {
+                    parsedSelectedOption = JSON.parse(selectedOptionRaw);
+                } catch (error) {
+                    console.warn('Unable to parse current selected_option payload', error);
+                }
+            }
+
+            return {
+                provider_code: $.trim(($('[name="provider_code"]').val() || '').toString()),
+                service_level: $.trim(($('[name="service_level"]').val() || '').toString()),
+                selected_option: parsedSelectedOption
+            };
+        }
+
+        function matchesSelectedCourier(optionPayload, currentSelection) {
+            if (!currentSelection || !currentSelection.selected_option || typeof currentSelection.selected_option !== 'object') {
+                return false;
+            }
+
+            var currentCourier = currentSelection.selected_option.selected_option || currentSelection.selected_option;
+            var optionCourier = optionPayload && optionPayload.selected_option && typeof optionPayload.selected_option === 'object'
+                ? optionPayload.selected_option
+                : {};
+            var currentCourierId = (currentCourier.id || currentCourier.courier_id || '').toString().trim();
+            var optionCourierId = (optionCourier.id || optionCourier.courier_id || '').toString().trim();
+
+            if (currentCourierId !== '' && optionCourierId !== '') {
+                return currentCourierId === optionCourierId;
+            }
+
+            var currentCourierName = (currentCourier.name || currentCourier.courier_name || '').toString().trim().toLowerCase();
+            var optionCourierName = (optionCourier.name || optionCourier.courier_name || '').toString().trim().toLowerCase();
+            var currentDeliveryType = (currentCourier.delivery_type || currentCourier.courier_delivery_type || '').toString().trim().toLowerCase();
+            var optionDeliveryType = (optionCourier.delivery_type || optionCourier.courier_delivery_type || '').toString().trim().toLowerCase();
+
+            return currentCourierName !== ''
+                && optionCourierName !== ''
+                && currentCourierName === optionCourierName
+                && currentDeliveryType === optionDeliveryType;
         }
 
         function updateCheckoutTotals(order) {
@@ -299,6 +354,7 @@ $this->registerJs(<<<JS
         }
 
         function getShippingOptions(countryId, stateId, cityId) {
+            var requestId = ++shippingOptionsRequestSeq;
             var payload = {
                 country_id: countryId,
                 state_id: stateId,
@@ -343,6 +399,14 @@ $this->registerJs(<<<JS
 
             $.ajax(ajaxSettings)
                 .done(function(response) {
+                    if (requestId !== shippingOptionsRequestSeq) {
+                        console.log('Ignoring stale shipping options response', {
+                            requestId: requestId,
+                            latestRequestId: shippingOptionsRequestSeq
+                        });
+                        return;
+                    }
+
                     console.log('get-shipping-options response:', response);
                     var data = (response && response.data) ? response.data : {};
                     var options = [];
@@ -572,18 +636,44 @@ $this->registerJs(<<<JS
                 });
             }
 
+            var currentSelection = getCurrentShippingSelection();
+            var effectiveProviderCode = currentSelection.provider_code || initialProviderCode;
+            var effectiveServiceLevel = currentSelection.service_level || initialServiceLevel;
             var selectedIndex = 0;
+            var matchedIndex = normalizedOptions.findIndex(function(option) {
+                var optionProviderCode = ((option.provider_code || '').toString().trim());
+                var optionServiceLevel = ((option.service_level || '').toString().trim());
+                var providerMatch = !effectiveProviderCode || optionProviderCode === effectiveProviderCode;
+                var levelMatch = !effectiveServiceLevel || optionServiceLevel === effectiveServiceLevel;
 
-            if (initialServiceLevel || initialProviderCode) {
-                var matchedIndex = normalizedOptions.findIndex(function(option) {
-                    var levelMatch = !initialServiceLevel || ((option.service_level || '').toString().trim() === initialServiceLevel);
-                    var providerMatch = !initialProviderCode || ((option.provider_code || '').toString().trim() === initialProviderCode);
+                if (!providerMatch || !levelMatch) {
+                    return false;
+                }
+
+                if (matchesSelectedCourier(option, currentSelection)) {
+                    return true;
+                }
+
+                return !currentSelection.selected_option;
+            });
+
+            if (matchedIndex < 0 && effectiveProviderCode) {
+                matchedIndex = normalizedOptions.findIndex(function(option) {
+                    return ((option.provider_code || '').toString().trim()) === effectiveProviderCode
+                        && matchesSelectedCourier(option, currentSelection);
+                });
+            }
+
+            if (matchedIndex < 0 && (effectiveServiceLevel || effectiveProviderCode)) {
+                matchedIndex = normalizedOptions.findIndex(function(option) {
+                    var levelMatch = !effectiveServiceLevel || ((option.service_level || '').toString().trim() === effectiveServiceLevel);
+                    var providerMatch = !effectiveProviderCode || ((option.provider_code || '').toString().trim() === effectiveProviderCode);
                     return levelMatch && providerMatch;
                 });
+            }
 
-                if (matchedIndex >= 0) {
-                    selectedIndex = matchedIndex;
-                }
+            if (matchedIndex >= 0) {
+                selectedIndex = matchedIndex;
             }
 
             var groupedProviders = buildProviderGroups(providers, normalizedOptions);

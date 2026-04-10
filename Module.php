@@ -6,7 +6,7 @@ use Yii;
 use yii\base\Application;
 use yii\base\Event;
 use yii\base\InvalidConfigException;
-use diincompany\shop\contracts\ShopApiClientInterface;
+use diincompany\diinapi\contracts\ShopApiClientInterface;
 use diincompany\shop\contracts\ShopLoggerInterface;
 use diincompany\shop\contracts\ShopSessionContextInterface;
 use diincompany\shop\events\BeforeRequestHandler;

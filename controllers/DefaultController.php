@@ -2,7 +2,7 @@
 
 namespace diincompany\shop\controllers;
 
-use diincompany\shop\contracts\ShopApiClientInterface;
+use diincompany\diinapi\contracts\ShopApiClientInterface;
 use diincompany\shop\contracts\ShopLoggerInterface;
 use diincompany\shop\contracts\ShopSessionContextInterface;
 use diincompany\shop\Module as ShopModule;
@@ -883,7 +883,7 @@ class DefaultController extends Controller
             throw new ServerErrorHttpException(Yii::t('shop', 'PDF export is currently unavailable.'));
         }
 
-        /** @var DiinApi $diinapi */
+        /** @var ShopApiClientInterface $diinapi */
         $diinapi = $this->apiClient();
         $orderResponse = $diinapi->getOrder(['hash' => $hash]);
         $order = $orderResponse['data'] ?? null;
