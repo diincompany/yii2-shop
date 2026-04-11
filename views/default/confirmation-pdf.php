@@ -81,6 +81,7 @@ $statusMap = [
     'paid' => Yii::t('shop', 'Paid'),
     'pending' => Yii::t('shop', 'Pending'),
     'processing' => Yii::t('shop', 'Processing'),
+    'ready_to_pickup' => Yii::t('shop', 'Ready to Pickup'),
     'shipped' => Yii::t('shop', 'Shipped'),
     'delivered' => Yii::t('shop', 'Delivered'),
 ];

@@ -20,6 +20,8 @@ $deliveryTypeLabel = trim((string) (
 $providerName = trim((string) ($shipping['provider_name'] ?? $shipping['provider_code'] ?? ''));
 $courierName = trim((string) ($shipping['courier_name'] ?? $selectedOption['courier_name'] ?? $selectedOption['name'] ?? ''));
 $warehouseName = trim((string) ($shipping['warehouse_name'] ?? ($shipping['warehouse']['name'] ?? '')));
+$warehouseAddress = trim((string) ($shipping['warehouse']['address_1'] ?? ''));
+$isPickupShipping = strpos(strtolower($deliveryTypeLabel), 'pickup') !== false || strpos(strtolower($deliveryTypeLabel), 'recoger') !== false;
 $shippingCost = isset($shipping['shipping_cost']) ? (float) $shipping['shipping_cost'] : null;
 $hasSelectedShipping = $providerName !== ''
     || $courierName !== ''
@@ -131,6 +133,12 @@ $hasSelectedShipping = $providerName !== ''
                 <?php if ($warehouseName !== ''): ?>
                     <p class="mb-1 text-muted small">
                         <strong><?= Yii::t('shop', 'Warehouse') ?>:</strong> <?= Html::encode($warehouseName) ?>
+                    </p>
+                <?php endif; ?>
+
+                <?php if ($isPickupShipping && $warehouseAddress !== ''): ?>
+                    <p class="mb-1 text-muted small">
+                        <strong><?= Yii::t('shop', 'Pickup Address') ?>:</strong> <?= Html::encode($warehouseAddress) ?>
                     </p>
                 <?php endif; ?>
 
