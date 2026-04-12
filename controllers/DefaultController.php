@@ -203,6 +203,85 @@ class DefaultController extends Controller
     }
 
     /**
+     * Extract a normalized order payload from API responses with different shapes.
+     */
+    private function extractOrderData(array $response): ?array
+    {
+        if (!isset($response['data']) || !is_array($response['data'])) {
+            return null;
+        }
+
+        $data = $response['data'];
+
+        if (isset($data['order']) && is_array($data['order'])) {
+            $order = $data['order'];
+
+            if (!isset($order['shipping']) && isset($data['shipping']) && is_array($data['shipping'])) {
+                $order['shipping'] = $data['shipping'];
+            }
+
+            return $order;
+        }
+
+        return $data;
+    }
+
+    /**
+     * Verify checkout leaves the order in a non-editable state before redirecting to payment.
+     */
+    private function verifyCheckoutOrderState(
+        ShopApiClientInterface $diinApi,
+        int $orderId,
+        string $sessionId,
+        array $orderSnapshot = []
+    ): ?array {
+        $currentStatus = strtolower(trim((string) ($orderSnapshot['status'] ?? '')));
+
+        $this->logger()->info('Checkout order state verification started', [
+            'order_id' => $orderId,
+            'session_id' => $sessionId,
+            'current_status' => $currentStatus,
+        ]);
+
+        if ($currentStatus !== '' && in_array($currentStatus, self::TERMINAL_ORDER_STATUSES, true)) {
+            return $orderSnapshot;
+        }
+
+        $refetchResponse = $diinApi->getOrderById($orderId);
+        $refetchedOrder = $this->extractOrderData($refetchResponse);
+        $refetchedStatus = strtolower(trim((string) ($refetchedOrder['status'] ?? '')));
+
+        $this->logger()->info('Checkout order state verification refetched order', [
+            'order_id' => $orderId,
+            'session_id' => $sessionId,
+            'refetched_status' => $refetchedStatus,
+            'response' => $refetchResponse,
+        ]);
+
+        if ($refetchedOrder !== null && $refetchedStatus !== '' && in_array($refetchedStatus, self::TERMINAL_ORDER_STATUSES, true)) {
+            return $refetchedOrder;
+        }
+
+        $needsAttention = $refetchedOrder === null
+            || $refetchedStatus === ''
+            || in_array($refetchedStatus, self::ACTIVE_CART_STATUSES, true);
+
+        if (!$needsAttention) {
+            return $refetchedOrder ?? $orderSnapshot;
+        }
+
+        $this->logger()->warning('Checkout order remained editable after checkout; API did not finalize order state', [
+            'order_id' => $orderId,
+            'session_id' => $sessionId,
+            'current_status' => $currentStatus,
+            'refetched_status' => $refetchedStatus,
+            'snapshot' => $orderSnapshot,
+        ]);
+
+        return null;
+    }
+
+    /**
      * Get current cart for session using allowed statuses.
      *
      * @param ShopApiClientInterface $diinApi
@@ -697,6 +776,22 @@ class DefaultController extends Controller
                         'message' => Yii::t('shop', 'shipping_address_required'),
                     ];
                 }
+
+                $finalizedOrder = $this->verifyCheckoutOrderState(
+                    $diinApi,
+                    $orderId,
+                    $sessionId,
+                    is_array($orderResponse['data'] ?? null) ? $orderResponse['data'] : []
+                );
+
+                if ($finalizedOrder === null) {
+                    return [
+                        'success' => false,
+                        'message' => $this->getSafeApiMessage([], 'error_processing_order'),
+                    ];
+                }
+
+                $orderResponse['data'] = $finalizedOrder;
 
                 // Clear cart
                 // $cartId = $cartResponse['data']['id'];

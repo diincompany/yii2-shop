@@ -81,6 +81,7 @@ return array (
   'error_loading_cart' => 'Error al cargar el carrito',
   'error_loading_checkout' => 'Error al cargar la página de checkout',
   'error_processing_checkout' => 'Error al procesar el checkout',
+  'error_processing_order' => 'Error al procesar el pedido',
   'error_removing_item' => 'Error al eliminar el artículo',
   'error_updating_quantity' => 'Error al actualizar la cantidad',
   'Failed to add product to cart' => 'No se pudo agregar el producto al carrito',
