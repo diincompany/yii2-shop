@@ -203,6 +203,84 @@ class DefaultController extends Controller
     }
 
     /**
+     * Extract a normalized order payload from API responses with different shapes.
+     */
+    private function extractOrderData(array $response): ?array
+    {
+        if (!isset($response['data']) || !is_array($response['data'])) {
+            return null;
+        }
+
+        $data = $response['data'];
+
+        if (isset($data['order']) && is_array($data['order'])) {
+            $order = $data['order'];
+
+            if (!isset($order['shipping']) && isset($data['shipping']) && is_array($data['shipping'])) {
+                $order['shipping'] = $data['shipping'];
+            }
+
+            return $order;
+        }
+
+        return $data;
+    }
+
+    /**
+     * Log order state before redirecting the shopper to DiinPay.
+     *
+     * At this point payment has not been processed yet, so cart orders are expected.
+     * The API becomes the source of truth for promoting manual-payment orders to pending.
+     */
+    private function logCheckoutOrderStateBeforePaymentRedirect(
+        ShopApiClientInterface $diinApi,
+        int $orderId,
+        string $sessionId,
+        array $orderSnapshot = []
+    ): array {
+        $currentStatus = strtolower(trim((string) ($orderSnapshot['status'] ?? '')));
+
+        $this->logger()->info('Checkout order state before payment redirect', [
+            'order_id' => $orderId,
+            'session_id' => $sessionId,
+            'current_status' => $currentStatus,
+        ]);
+
+        $refetchResponse = $diinApi->getOrderById($orderId);
+        $refetchedOrder = $this->extractOrderData($refetchResponse);
+        $refetchedStatus = strtolower(trim((string) ($refetchedOrder['status'] ?? '')));
+
+        $this->logger()->info('Checkout order state refetched before payment redirect', [
+            'order_id' => $orderId,
+            'session_id' => $sessionId,
+            'refetched_status' => $refetchedStatus,
+            'response' => $refetchResponse,
+        ]);
+
+        if ($refetchedOrder !== null && $refetchedStatus !== '') {
+            if (!in_array($refetchedStatus, array_merge(self::ACTIVE_CART_STATUSES, self::TERMINAL_ORDER_STATUSES), true)) {
+                $this->logger()->warning('Checkout order returned unexpected status before payment redirect', [
+                    'order_id' => $orderId,
+                    'session_id' => $sessionId,
+                    'current_status' => $currentStatus,
+                    'refetched_status' => $refetchedStatus,
+                ]);
+            }
+
+            return $refetchedOrder;
+        }
+
+        $this->logger()->warning('Unable to refetch order state before payment redirect; continuing with local snapshot', [
+            'order_id' => $orderId,
+            'session_id' => $sessionId,
+            'current_status' => $currentStatus,
+            'snapshot' => $orderSnapshot,
+        ]);
+
+        return $orderSnapshot;
+    }
+
+    /**
      * Get current cart for session using allowed statuses.
      *
      * @param ShopApiClientInterface $diinApi
@@ -697,6 +775,13 @@ class DefaultController extends Controller
                         'message' => Yii::t('shop', 'shipping_address_required'),
                     ];
                 }
+
+                $orderResponse['data'] = $this->logCheckoutOrderStateBeforePaymentRedirect(
+                    $diinApi,
+                    $orderId,
+                    $sessionId,
+                    is_array($orderResponse['data'] ?? null) ? $orderResponse['data'] : []
+                );
 
                 // Clear cart
                 // $cartId = $cartResponse['data']['id'];
