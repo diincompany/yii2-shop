@@ -125,6 +125,9 @@ $daysTextJson = json_encode(Yii::t('shop', 'days'));
 $discountTextJson = json_encode(Yii::t('shop', 'Discount'));
 $noShippingOptionsFallbackTextJson = json_encode(Yii::t('shop', 'shipping_options_unavailable_fallback'));
 $codAvailableTextJson = json_encode(Yii::t('shop', 'cash_on_delivery_available'));
+$pickupTextJson = json_encode(Yii::t('shop', 'Pickup'));
+$pickupAddressTextJson = json_encode(Yii::t('shop', 'Pickup Address'));
+$warehouseTextJson = json_encode(Yii::t('shop', 'Warehouse'));
 $initialServiceLevelJson = json_encode((string) ($shippingServiceLevel ?? ''));
 $initialProviderCodeJson = json_encode((string) (($persistedShipping['provider_code'] ?? '')));
 $initialShippingOptionJson = json_encode((array) ($persistedShipping ?? []));
@@ -151,6 +154,9 @@ $this->registerJs(<<<JS
         var discountText = $discountTextJson;
         var noShippingOptionsFallbackText = $noShippingOptionsFallbackTextJson;
         var codAvailableText = $codAvailableTextJson;
+        var pickupText = $pickupTextJson;
+        var pickupAddressText = $pickupAddressTextJson;
+        var warehouseText = $warehouseTextJson;
         var uiLang = (($('html').attr('lang') || 'es').toString().toLowerCase().indexOf('en') === 0) ? 'en' : 'es';
         var initialServiceLevel = ($initialServiceLevelJson || '').toString().trim();
         var initialProviderCode = ($initialProviderCodeJson || '').toString().trim();
@@ -215,6 +221,78 @@ $this->registerJs(<<<JS
                 && optionCourierName !== ''
                 && currentCourierName === optionCourierName
                 && currentDeliveryType === optionDeliveryType;
+        }
+
+        function isPickupOptionPayload(optionPayload) {
+            if (!optionPayload || typeof optionPayload !== 'object') {
+                return false;
+            }
+
+            var selectedOption = optionPayload.selected_option && typeof optionPayload.selected_option === 'object'
+                ? optionPayload.selected_option
+                : optionPayload;
+            var deliveryType = (selectedOption.delivery_type || selectedOption.courier_delivery_type || optionPayload.courier_delivery_type || '').toString().trim().toLowerCase();
+            var deliveryTypeKey = (selectedOption.delivery_type_key || optionPayload.courier_delivery_type_key || '').toString().trim().toLowerCase();
+
+            return deliveryType === 'pickup' || deliveryTypeKey === 'pickup';
+        }
+
+        function getOptionWarehouse(optionPayload) {
+            if (!optionPayload || typeof optionPayload !== 'object') {
+                return null;
+            }
+
+            if (optionPayload.warehouse && typeof optionPayload.warehouse === 'object') {
+                return optionPayload.warehouse;
+            }
+
+            if (optionPayload.selected_option && typeof optionPayload.selected_option === 'object' && optionPayload.selected_option.warehouse && typeof optionPayload.selected_option.warehouse === 'object') {
+                return optionPayload.selected_option.warehouse;
+            }
+
+            var warehouseId = optionPayload.warehouse_id || (optionPayload.selected_option && optionPayload.selected_option.warehouse_id) || null;
+            var warehouseName = optionPayload.warehouse_name || (optionPayload.selected_option && optionPayload.selected_option.warehouse_name) || null;
+
+            if (!warehouseId && !warehouseName) {
+                return null;
+            }
+
+            return {
+                id: warehouseId || null,
+                name: warehouseName || null,
+                geolocation: null
+            };
+        }
+
+        function getWarehouseAddressText(warehouse) {
+            if (!warehouse || typeof warehouse !== 'object') {
+                return '';
+            }
+
+            return [warehouse.address_1 || '', warehouse.zipcode || '']
+                .filter(function(part) { return $.trim((part || '').toString()) !== ''; })
+                .join(', ');
+        }
+
+        function getWarehouseGeolocation(warehouse) {
+            if (!warehouse || typeof warehouse !== 'object') {
+                return null;
+            }
+
+            var geolocation = warehouse.geolocation && typeof warehouse.geolocation === 'object'
+                ? warehouse.geolocation
+                : warehouse;
+            var latitude = geolocation.latitude;
+            var longitude = geolocation.longitude;
+
+            if (latitude === null || typeof latitude === 'undefined' || latitude === '' || longitude === null || typeof longitude === 'undefined' || longitude === '') {
+                return null;
+            }
+
+            return {
+                latitude: latitude,
+                longitude: longitude
+            };
         }
 
         function updateCheckoutTotals(order) {
@@ -351,6 +429,12 @@ $this->registerJs(<<<JS
                 latitude: latitude,
                 longitude: longitude
             };
+        }
+
+        function updateShippingGeolocation(lat, lng) {
+            $('[name="shipping_latitude"]').val(lat);
+            $('[name="shipping_longitude"]').val(lng);
+            updateLocationCoordsText(lat, lng);
         }
 
         function getShippingOptions(countryId, stateId, cityId) {
@@ -691,7 +775,10 @@ $this->registerJs(<<<JS
 
                 var daysDisplay = '';
                 var providerCode = (option.provider_code || '').toString().toLowerCase().trim();
-                var shouldShowEstimatedDays = providerCode !== 'boxful';
+                var isPickupOption = isPickupOptionPayload(option);
+                var warehouse = getOptionWarehouse(option);
+                var warehouseAddress = getWarehouseAddressText(warehouse);
+                var shouldShowEstimatedDays = providerCode !== 'boxful' && !isPickupOption;
                 if (shouldShowEstimatedDays && option.estimated_days_min && option.estimated_days_max) {
                     daysDisplay = ' (' + option.estimated_days_min + '-' + option.estimated_days_max + ' ' + daysText + ')';
                 }
@@ -704,7 +791,9 @@ $this->registerJs(<<<JS
                 var deliveryLabelEn = (option.courier_delivery_type_label_en || (option.selected_option && option.selected_option.delivery_type_label_en) || '').toString().trim();
                 var deliveryLabel = uiLang === 'en' ? (deliveryLabelEn || deliveryType) : (deliveryLabelEs || deliveryType);
                 var optionTitle = option.service_level.charAt(0).toUpperCase() + option.service_level.slice(1);
-                if (courierName) {
+                if (isPickupOption) {
+                    optionTitle = pickupText;
+                } else if (courierName) {
                     optionTitle = courierName + (deliveryLabel ? ' (' + deliveryLabel + ')' : '');
                 }
                 var selectedPayload = {
@@ -716,6 +805,7 @@ $this->registerJs(<<<JS
                     shipping_zone_id: option.shipping_zone_id || null,
                     warehouse_id: option.warehouse_id || null,
                     warehouse_name: option.warehouse_name || null,
+                    warehouse: warehouse || null,
                     selected_option: option.selected_option || {
                         id: option.courier_id || null,
                         courier_id: option.courier_id || null,
@@ -730,7 +820,10 @@ $this->registerJs(<<<JS
                         service_level: option.service_level || null,
                         supports_cod: option.supports_cod || false,
                         cod_commission_percent: option.cod_commission_percent || null,
-                        client_cod_commission: option.cod_commission_percent || null
+                        client_cod_commission: option.cod_commission_percent || null,
+                        warehouse_id: option.warehouse_id || null,
+                        warehouse_name: option.warehouse_name || null,
+                        warehouse: warehouse || null
                     },
                     courier_options: option.courier_options || [],
                     supports_cod: option.supports_cod || false,
@@ -743,6 +836,9 @@ $this->registerJs(<<<JS
                 option.__costText = costText;
                 option.__codMeta = buildCodMeta(option);
                 option.__isSelected = index === selectedIndex;
+                option.__isPickup = isPickupOption;
+                option.__warehouseName = (warehouse && warehouse.name ? warehouse.name.toString() : (option.warehouse_name || '').toString());
+                option.__warehouseAddress = warehouseAddress;
             });
 
             groupedProviders.forEach(function(providerGroup, providerIndex) {
@@ -811,6 +907,19 @@ $this->registerJs(<<<JS
                     });
                     var left = $('<div>');
                     left.append($('<strong>').text(option.__title + option.__daysDisplay));
+                    if (option.__isPickup) {
+                        if (option.__warehouseName) {
+                            left.append($('<div>', {
+                                'class': 'small text-muted mt-1'
+                            }).text(warehouseText + ': ' + option.__warehouseName));
+                        }
+
+                        if (option.__warehouseAddress) {
+                            left.append($('<div>', {
+                                'class': 'small text-muted'
+                            }).text(pickupAddressText + ': ' + option.__warehouseAddress));
+                        }
+                    }
                     if (option.__codMeta && option.__codMeta.supports_cod) {
                         var codBadgeRow = $('<div>', {
                             'class': 'small text-muted mt-1'
@@ -866,6 +975,7 @@ $this->registerJs(<<<JS
                         shipping_zone_id: selectedOption.shipping_zone_id || null,
                         warehouse_id: selectedOption.warehouse_id || null,
                         warehouse_name: selectedOption.warehouse_name || null,
+                        warehouse: getOptionWarehouse(selectedOption),
                         selected_option: selectedOption.selected_option || null,
                         courier_options: selectedOption.courier_options || [],
                         supports_cod: selectedOption.supports_cod || false,
@@ -888,6 +998,15 @@ $this->registerJs(<<<JS
             $('[name="service_level"]').val(serviceLevel);
             $('[name="provider_code"]').val(providerCode || '');
             $('[name="selected_option"]').val(selectedOptionPayload ? JSON.stringify(selectedOptionPayload) : '');
+
+            if (selectedOptionPayload && isPickupOptionPayload(selectedOptionPayload)) {
+                var pickupWarehouse = getOptionWarehouse(selectedOptionPayload);
+                var pickupGeolocation = getWarehouseGeolocation(pickupWarehouse);
+
+                if (pickupGeolocation) {
+                    updateShippingGeolocation(pickupGeolocation.latitude, pickupGeolocation.longitude);
+                }
+            }
 
             if (typeof window.gtag === 'function' && gaCheckoutItems.length > 0) {
                 window.gtag('event', 'add_shipping_info', {
@@ -1004,9 +1123,7 @@ $this->registerJs(<<<JS
         }
 
         function setLocationAndRequote(lat, lng) {
-            $('[name="shipping_latitude"]').val(lat);
-            $('[name="shipping_longitude"]').val(lng);
-            updateLocationCoordsText(lat, lng);
+            updateShippingGeolocation(lat, lng);
             calculateShipping();
         }
 
@@ -1052,9 +1169,7 @@ $this->registerJs(<<<JS
                 if (shouldRequote) {
                     setLocationAndRequote(lat, lng);
                 } else {
-                    $('[name="shipping_latitude"]').val(lat);
-                    $('[name="shipping_longitude"]').val(lng);
-                    updateLocationCoordsText(lat, lng);
+                    updateShippingGeolocation(lat, lng);
                 }
             }
 
