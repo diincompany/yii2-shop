@@ -418,6 +418,33 @@ $this->registerJs(<<<JS
         }
 
         function getShippingGeolocationPayload() {
+            var latitude = $.trim(($('[name="customer_shipping_latitude"]').val() || '').toString());
+            var longitude = $.trim(($('[name="customer_shipping_longitude"]').val() || '').toString());
+
+            if (latitude === '' || longitude === '') {
+                return null;
+            }
+
+            return {
+                latitude: latitude,
+                longitude: longitude
+            };
+        }
+
+        function getEffectiveShippingGeolocationPayload(selectedOptionPayload) {
+            if (selectedOptionPayload && isPickupOptionPayload(selectedOptionPayload)) {
+                var pickupWarehouse = getOptionWarehouse(selectedOptionPayload);
+                var pickupGeolocation = getWarehouseGeolocation(pickupWarehouse);
+
+                if (pickupGeolocation) {
+                    return pickupGeolocation;
+                }
+            }
+
+            return getShippingGeolocationPayload();
+        }
+
+        function getSubmittedShippingGeolocationPayload() {
             var latitude = $.trim(($('[name="shipping_latitude"]').val() || '').toString());
             var longitude = $.trim(($('[name="shipping_longitude"]').val() || '').toString());
 
@@ -434,7 +461,24 @@ $this->registerJs(<<<JS
         function updateShippingGeolocation(lat, lng) {
             $('[name="shipping_latitude"]').val(lat);
             $('[name="shipping_longitude"]').val(lng);
+        }
+
+        function updateCustomerShippingGeolocation(lat, lng) {
+            $('[name="customer_shipping_latitude"]').val(lat);
+            $('[name="customer_shipping_longitude"]').val(lng);
             updateLocationCoordsText(lat, lng);
+        }
+
+        function syncSubmittedShippingGeolocation(selectedOptionPayload) {
+            var effectiveGeolocation = getEffectiveShippingGeolocationPayload(selectedOptionPayload);
+
+            if (effectiveGeolocation) {
+                updateShippingGeolocation(effectiveGeolocation.latitude, effectiveGeolocation.longitude);
+                return;
+            }
+
+            $('[name="shipping_latitude"]').val('');
+            $('[name="shipping_longitude"]').val('');
         }
 
         function getShippingOptions(countryId, stateId, cityId) {
@@ -988,14 +1032,7 @@ $this->registerJs(<<<JS
             $('[name="provider_code"]').val(providerCode || '');
             $('[name="selected_option"]').val(selectedOptionPayload ? JSON.stringify(selectedOptionPayload) : '');
 
-            if (selectedOptionPayload && isPickupOptionPayload(selectedOptionPayload)) {
-                var pickupWarehouse = getOptionWarehouse(selectedOptionPayload);
-                var pickupGeolocation = getWarehouseGeolocation(pickupWarehouse);
-
-                if (pickupGeolocation) {
-                    updateShippingGeolocation(pickupGeolocation.latitude, pickupGeolocation.longitude);
-                }
-            }
+            syncSubmittedShippingGeolocation(selectedOptionPayload);
 
             if (typeof window.gtag === 'function' && gaCheckoutItems.length > 0) {
                 window.gtag('event', 'add_shipping_info', {
@@ -1033,7 +1070,7 @@ $this->registerJs(<<<JS
                 payload.selected_option = selectedOptionPayload;
             }
 
-            var geolocation = getShippingGeolocationPayload();
+            var geolocation = getEffectiveShippingGeolocationPayload(selectedOptionPayload);
             if (geolocation) {
                 payload.latitude = geolocation.latitude;
                 payload.longitude = geolocation.longitude;
@@ -1112,7 +1149,8 @@ $this->registerJs(<<<JS
         }
 
         function setLocationAndRequote(lat, lng) {
-            updateShippingGeolocation(lat, lng);
+            updateCustomerShippingGeolocation(lat, lng);
+            syncSubmittedShippingGeolocation(getCurrentShippingSelection().selected_option);
             calculateShipping();
         }
 
@@ -1124,8 +1162,16 @@ $this->registerJs(<<<JS
 
             var defaultLat = 15.5053;
             var defaultLng = -88.0250;
-            var initialLat = parseFloat($('[name="shipping_latitude"]').val() || defaultLat);
-            var initialLng = parseFloat($('[name="shipping_longitude"]').val() || defaultLng);
+            var initialLat = parseFloat(
+                $('[name="customer_shipping_latitude"]').val()
+                || $('[name="shipping_latitude"]').val()
+                || defaultLat
+            );
+            var initialLng = parseFloat(
+                $('[name="customer_shipping_longitude"]').val()
+                || $('[name="shipping_longitude"]').val()
+                || defaultLng
+            );
 
             var map = L.map('shipping-location-map').setView([initialLat, initialLng], 12);
 
@@ -1146,10 +1192,13 @@ $this->registerJs(<<<JS
                 setLocationAndRequote(e.latlng.lat, e.latlng.lng);
             });
 
-            var currentLat = $.trim(($('[name="shipping_latitude"]').val() || '').toString());
-            var currentLng = $.trim(($('[name="shipping_longitude"]').val() || '').toString());
+            var currentLat = $.trim(($('[name="customer_shipping_latitude"]').val() || '').toString());
+            var currentLng = $.trim(($('[name="customer_shipping_longitude"]').val() || '').toString());
             if (currentLat !== '' && currentLng !== '') {
                 setLocationAndRequote(parseFloat(currentLat), parseFloat(currentLng));
+            } else {
+                updateCustomerShippingGeolocation(initialLat, initialLng);
+                syncSubmittedShippingGeolocation(getCurrentShippingSelection().selected_option);
             }
 
             function centerMapToCoordinates(lat, lng, shouldRequote) {
@@ -1158,7 +1207,8 @@ $this->registerJs(<<<JS
                 if (shouldRequote) {
                     setLocationAndRequote(lat, lng);
                 } else {
-                    updateShippingGeolocation(lat, lng);
+                    updateCustomerShippingGeolocation(lat, lng);
+                    syncSubmittedShippingGeolocation(getCurrentShippingSelection().selected_option);
                 }
             }
 
@@ -1214,6 +1264,8 @@ $this->registerJs(<<<JS
                     items: gaCheckoutItems
                 });
             }
+
+            syncSubmittedShippingGeolocation(getCurrentShippingSelection().selected_option);
 
             var formData = form.serialize();
 

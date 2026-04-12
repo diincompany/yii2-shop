@@ -23,6 +23,8 @@ use yii\helpers\Url;
             <?= Html::hiddenInput('provider_code', '') ?>
             <?= Html::hiddenInput('selected_option', '') ?>
             <?= Html::hiddenInput('shipping_cost', $shipping ?? 0) ?>
+            <?= Html::hiddenInput('customer_shipping_latitude', '') ?>
+            <?= Html::hiddenInput('customer_shipping_longitude', '') ?>
             <?= Html::hiddenInput('shipping_latitude', '') ?>
             <?= Html::hiddenInput('shipping_longitude', '') ?>
 
