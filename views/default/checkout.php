@@ -445,17 +445,6 @@ $this->registerJs(<<<JS
                 city_id: cityId
             };
 
-            var currentProviderCode = $.trim(($('[name="provider_code"]').val() || '').toString());
-            var currentServiceLevel = $.trim(($('[name="service_level"]').val() || '').toString());
-
-            if (currentProviderCode !== '') {
-                payload.provider_code = currentProviderCode;
-            }
-
-            if (currentServiceLevel !== '') {
-                payload.service_level = currentServiceLevel;
-            }
-
             var geolocation = getShippingGeolocationPayload();
             if (geolocation) {
                 payload.latitude = geolocation.latitude;

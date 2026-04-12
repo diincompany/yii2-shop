@@ -227,58 +227,57 @@ class DefaultController extends Controller
     }
 
     /**
-     * Verify checkout leaves the order in a non-editable state before redirecting to payment.
+     * Log order state before redirecting the shopper to DiinPay.
+     *
+     * At this point payment has not been processed yet, so cart orders are expected.
+     * The API becomes the source of truth for promoting manual-payment orders to pending.
      */
-    private function verifyCheckoutOrderState(
+    private function logCheckoutOrderStateBeforePaymentRedirect(
         ShopApiClientInterface $diinApi,
         int $orderId,
         string $sessionId,
         array $orderSnapshot = []
-    ): ?array {
+    ): array {
         $currentStatus = strtolower(trim((string) ($orderSnapshot['status'] ?? '')));
 
-        $this->logger()->info('Checkout order state verification started', [
+        $this->logger()->info('Checkout order state before payment redirect', [
             'order_id' => $orderId,
             'session_id' => $sessionId,
             'current_status' => $currentStatus,
         ]);
 
-        if ($currentStatus !== '' && in_array($currentStatus, self::TERMINAL_ORDER_STATUSES, true)) {
-            return $orderSnapshot;
-        }
-
         $refetchResponse = $diinApi->getOrderById($orderId);
         $refetchedOrder = $this->extractOrderData($refetchResponse);
         $refetchedStatus = strtolower(trim((string) ($refetchedOrder['status'] ?? '')));
 
-        $this->logger()->info('Checkout order state verification refetched order', [
+        $this->logger()->info('Checkout order state refetched before payment redirect', [
             'order_id' => $orderId,
             'session_id' => $sessionId,
             'refetched_status' => $refetchedStatus,
             'response' => $refetchResponse,
         ]);
 
-        if ($refetchedOrder !== null && $refetchedStatus !== '' && in_array($refetchedStatus, self::TERMINAL_ORDER_STATUSES, true)) {
+        if ($refetchedOrder !== null && $refetchedStatus !== '') {
+            if (!in_array($refetchedStatus, array_merge(self::ACTIVE_CART_STATUSES, self::TERMINAL_ORDER_STATUSES), true)) {
+                $this->logger()->warning('Checkout order returned unexpected status before payment redirect', [
+                    'order_id' => $orderId,
+                    'session_id' => $sessionId,
+                    'current_status' => $currentStatus,
+                    'refetched_status' => $refetchedStatus,
+                ]);
+            }
+
             return $refetchedOrder;
         }
 
-        $needsAttention = $refetchedOrder === null
-            || $refetchedStatus === ''
-            || in_array($refetchedStatus, self::ACTIVE_CART_STATUSES, true);
-
-        if (!$needsAttention) {
-            return $refetchedOrder ?? $orderSnapshot;
-        }
-
-        $this->logger()->warning('Checkout order remained editable after checkout; API did not finalize order state', [
+        $this->logger()->warning('Unable to refetch order state before payment redirect; continuing with local snapshot', [
             'order_id' => $orderId,
             'session_id' => $sessionId,
             'current_status' => $currentStatus,
-            'refetched_status' => $refetchedStatus,
             'snapshot' => $orderSnapshot,
         ]);
 
-        return null;
+        return $orderSnapshot;
     }
 
     /**
@@ -777,21 +776,12 @@ class DefaultController extends Controller
                     ];
                 }
 
-                $finalizedOrder = $this->verifyCheckoutOrderState(
+                $orderResponse['data'] = $this->logCheckoutOrderStateBeforePaymentRedirect(
                     $diinApi,
                     $orderId,
                     $sessionId,
                     is_array($orderResponse['data'] ?? null) ? $orderResponse['data'] : []
                 );
-
-                if ($finalizedOrder === null) {
-                    return [
-                        'success' => false,
-                        'message' => $this->getSafeApiMessage([], 'error_processing_order'),
-                    ];
-                }
-
-                $orderResponse['data'] = $finalizedOrder;
 
                 // Clear cart
                 // $cartId = $cartResponse['data']['id'];
