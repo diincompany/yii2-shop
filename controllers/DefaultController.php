@@ -19,6 +19,8 @@ class DefaultController extends Controller
 {
     private const ACTIVE_CART_STATUSES = ['cart'];
     private const TERMINAL_ORDER_STATUSES = ['pending', 'paid', 'completed', 'processing'];
+    private const ORDER_DISPATCHED_STATUSES = ['shipped', 'delivered', 'dispatched'];
+    private const ORDER_CANCELLED_STATUSES = ['cancelled', 'canceled'];
 
     private function shopModule(): ShopModule
     {
@@ -70,6 +72,44 @@ class DefaultController extends Controller
     private function buildConfirmationUrl(string $hash): string
     {
         return Yii::$app->urlManager->createAbsoluteUrl($this->moduleRouteParams('default/confirmation', ['hash' => $hash]));
+    }
+
+    private function normalizeOrderStatus(?string $status): string
+    {
+        return strtolower(trim((string) $status));
+    }
+
+    private function isOrderCancelledStatus(?string $status): bool
+    {
+        return in_array($this->normalizeOrderStatus($status), self::ORDER_CANCELLED_STATUSES, true);
+    }
+
+    private function isOrderDispatchedStatus(?string $status): bool
+    {
+        return in_array($this->normalizeOrderStatus($status), self::ORDER_DISPATCHED_STATUSES, true);
+    }
+
+    private function canOrderBeCancelled(array $order): bool
+    {
+        $status = $this->normalizeOrderStatus($order['status'] ?? '');
+
+        return $status !== '' && !$this->isOrderCancelledStatus($status) && !$this->isOrderDispatchedStatus($status);
+    }
+
+    private function buildCancellationComment(array $order, string $reason): string
+    {
+        $existingComment = trim((string) ($order['comment'] ?? ''));
+        $cancellationNote = Yii::t('shop', 'Cancellation reason: {reason}', ['reason' => $reason]);
+
+        if ($existingComment === '') {
+            return $cancellationNote;
+        }
+
+        if (strpos($existingComment, $cancellationNote) !== false) {
+            return $existingComment;
+        }
+
+        return $existingComment . PHP_EOL . PHP_EOL . $cancellationNote;
     }
 
     /**
@@ -891,7 +931,95 @@ class DefaultController extends Controller
 
         return $this->render('confirmation', [
             'order' => $order['data'] ?? null,
+            'canCancelOrder' => isset($order['data']) && is_array($order['data']) ? $this->canOrderBeCancelled($order['data']) : false,
         ]);
+    }
+
+    /**
+     * Cancel an order from the confirmation page.
+     *
+     * @param string $hash
+     * @return Response
+     */
+    public function actionCancelOrder($hash)
+    {
+        if (!Yii::$app->request->isPost) {
+            throw new NotFoundHttpException(Yii::t('shop', 'Invalid request method'));
+        }
+
+        $reason = trim((string) Yii::$app->request->post('cancellation_reason', ''));
+        if ($reason === '') {
+            Yii::$app->session->setFlash('shopCancelError', Yii::t('shop', 'Cancellation reason is required.'));
+            return $this->redirect($this->moduleRouteParams('default/confirmation', ['hash' => $hash]));
+        }
+
+        try {
+            $orderResponse = $this->apiClient()->getOrder(['hash' => $hash]);
+            $order = $orderResponse['data'] ?? null;
+
+            if (empty($order) || !is_array($order) || empty($order['id'])) {
+                Yii::$app->session->setFlash('shopCancelError', Yii::t('shop', 'Unable to retrieve your order details.'));
+                return $this->redirect($this->moduleRouteParams('default/confirmation', ['hash' => $hash]));
+            }
+
+            if (!$this->canOrderBeCancelled($order)) {
+                $message = $this->isOrderDispatchedStatus($order['status'] ?? '')
+                    ? Yii::t('shop', 'This order can no longer be cancelled because it has already been dispatched.')
+                    : Yii::t('shop', 'This order cannot be cancelled.');
+
+                Yii::$app->session->setFlash('shopCancelError', $message);
+                return $this->redirect($this->moduleRouteParams('default/confirmation', ['hash' => $hash]));
+            }
+
+            $orderId = (int) $order['id'];
+            $commentPayload = [
+                'comment' => $this->buildCancellationComment($order, $reason),
+            ];
+
+            if (!empty($order['type'])) {
+                $commentPayload['type'] = $order['type'];
+            }
+
+            if (!empty($order['session_id'])) {
+                $commentPayload['session_id'] = $order['session_id'];
+            }
+
+            $commentUpdateResponse = $this->apiClient()->putOrder($orderId, $commentPayload);
+
+            if (!isset($commentUpdateResponse['data'])) {
+                $this->logger()->warning('Order cancellation comment update failed', [
+                    'order_id' => $orderId,
+                    'hash' => $hash,
+                    'response' => $commentUpdateResponse,
+                ]);
+
+                Yii::$app->session->setFlash('shopCancelError', Yii::t('shop', 'We could not save your cancellation reason. Please try again.'));
+                return $this->redirect($this->moduleRouteParams('default/confirmation', ['hash' => $hash]));
+            }
+
+            $cancelResponse = $this->apiClient()->updateOrderStatus($orderId, 'cancelled');
+            if (!isset($cancelResponse['data'])) {
+                $this->logger()->warning('Order cancellation failed', [
+                    'order_id' => $orderId,
+                    'hash' => $hash,
+                    'response' => $cancelResponse,
+                ]);
+
+                Yii::$app->session->setFlash('shopCancelError', Yii::t('shop', 'We could not cancel your order right now. Please try again.'));
+                return $this->redirect($this->moduleRouteParams('default/confirmation', ['hash' => $hash]));
+            }
+
+            Yii::$app->session->setFlash('shopCancelSuccess', Yii::t('shop', 'Your order has been cancelled successfully.'));
+            return $this->redirect($this->moduleRouteParams('default/confirmation', ['hash' => $hash]));
+        } catch (\Exception $e) {
+            $this->logger()->error('Error cancelling order: ' . $e->getMessage(), [
+                'hash' => $hash,
+                'exception' => $e,
+            ]);
+
+            Yii::$app->session->setFlash('shopCancelError', Yii::t('shop', 'We could not cancel your order right now. Please try again.'));
+            return $this->redirect($this->moduleRouteParams('default/confirmation', ['hash' => $hash]));
+        }
     }
 
     /**

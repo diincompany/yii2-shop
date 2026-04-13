@@ -800,8 +800,23 @@ class DiinApi extends Component implements ShopApiClientInterface
     public function updateOrderStatus(int $orderId, string $status)
     {
         $endpoint = "order/{$orderId}/status";
+        $payload = ['status' => $status];
+        $response = $this->request($endpoint, $payload, 'PUT');
 
-        return $this->request($endpoint, ['status' => $status], 'PUT');
+        $statusCode = (int) ($response['status_code'] ?? 0);
+        if ($statusCode === 404 || strtolower((string) ($response['status'] ?? '')) === 'error') {
+            $this->logger->warning('updateOrderStatus fallback endpoint used', [
+                'primary_endpoint' => $endpoint,
+                'fallback_endpoint' => "order/{$orderId}",
+                'order_id' => $orderId,
+                'status' => $status,
+                'primary_response' => $response,
+            ]);
+
+            return $this->putOrder($orderId, $payload);
+        }
+
+        return $this->normalizeOrderResponse($response);
     }
 
     /**
