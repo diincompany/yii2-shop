@@ -48,6 +48,8 @@ interface ShopApiClientInterface
 
     public function deleteOrderItem(int $itemId);
 
+    public function cancelOrder(int $orderId, string $reason, array $meta = []);
+
     public function updateOrderStatus(int $orderId, string $status);
 
     public function markOrderAsPaid(int $orderId, array $paymentData = []);

@@ -15,7 +15,15 @@ $this->title = Yii::t('shop', 'Order Confirmation');
     <?= $this->render('includes/confirmation/no-order') ?>
 <?php else: ?>
     <?php
+        $orderStatusMap = [
+            '1' => 'pending',
+            '2' => 'paid',
+            '3' => 'shipped',
+            '4' => 'cancelled',
+            '5' => 'completed',
+        ];
         $orderStatus = strtolower(trim((string) ($order['status'] ?? '')));
+        $orderStatus = $orderStatusMap[$orderStatus] ?? $orderStatus;
         $isPendingPayment = $orderStatus === 'pending';
         $isCancelledOrder = in_array($orderStatus, ['cancelled', 'canceled'], true);
 

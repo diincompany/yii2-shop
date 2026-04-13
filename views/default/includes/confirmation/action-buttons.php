@@ -13,7 +13,15 @@ if ($moduleId === '' || $moduleId === Yii::$app->id) {
 }
 $moduleRoute = '/' . $moduleId;
 $canCancelOrder = isset($canCancelOrder) ? (bool) $canCancelOrder : false;
+$orderStatusMap = [
+    '1' => 'pending',
+    '2' => 'paid',
+    '3' => 'shipped',
+    '4' => 'cancelled',
+    '5' => 'completed',
+];
 $orderStatus = strtolower(trim((string) ($order['status'] ?? '')));
+$orderStatus = $orderStatusMap[$orderStatus] ?? $orderStatus;
 $cancelBlockedMessage = Yii::t('shop', 'You can only cancel an order before it has been dispatched.');
 $cancelDisabledMessage = in_array($orderStatus, ['cancelled', 'canceled'], true)
     ? Yii::t('shop', 'This order cannot be cancelled.')

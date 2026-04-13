@@ -21,6 +21,23 @@ class DefaultController extends Controller
     private const TERMINAL_ORDER_STATUSES = ['pending', 'paid', 'completed', 'processing'];
     private const ORDER_DISPATCHED_STATUSES = ['shipped', 'delivered', 'dispatched'];
     private const ORDER_CANCELLED_STATUSES = ['cancelled', 'canceled'];
+    private const ORDER_STATUS_ALIASES = [
+        '1' => 'pending',
+        '2' => 'paid',
+        '3' => 'shipped',
+        '4' => 'cancelled',
+        '5' => 'completed',
+        'pending' => 'pending',
+        'paid' => 'paid',
+        'shipped' => 'shipped',
+        'cancelled' => 'cancelled',
+        'canceled' => 'cancelled',
+        'completed' => 'completed',
+        'processing' => 'paid',
+        'ready_to_pickup' => 'shipped',
+        'delivered' => 'completed',
+        'dispatched' => 'shipped',
+    ];
 
     private function shopModule(): ShopModule
     {
@@ -76,7 +93,9 @@ class DefaultController extends Controller
 
     private function normalizeOrderStatus(?string $status): string
     {
-        return strtolower(trim((string) $status));
+        $normalized = strtolower(trim((string) $status));
+
+        return self::ORDER_STATUS_ALIASES[$normalized] ?? $normalized;
     }
 
     private function isOrderCancelledStatus(?string $status): bool
@@ -92,24 +111,18 @@ class DefaultController extends Controller
     private function canOrderBeCancelled(array $order): bool
     {
         $status = $this->normalizeOrderStatus($order['status'] ?? '');
+        $orderType = strtolower(trim((string) ($order['type'] ?? '')));
+        $isCartType = $orderType === '' || $orderType === 'cart' || $orderType === '1' || (string) ($order['type'] ?? '') === '1';
 
-        return $status !== '' && !$this->isOrderCancelledStatus($status) && !$this->isOrderDispatchedStatus($status);
-    }
-
-    private function buildCancellationComment(array $order, string $reason): string
-    {
-        $existingComment = trim((string) ($order['comment'] ?? ''));
-        $cancellationNote = Yii::t('shop', 'Cancellation reason: {reason}', ['reason' => $reason]);
-
-        if ($existingComment === '') {
-            return $cancellationNote;
+        if ($status === '' || $this->isOrderCancelledStatus($status) || $status === 'completed') {
+            return false;
         }
 
-        if (strpos($existingComment, $cancellationNote) !== false) {
-            return $existingComment;
+        if ($isCartType) {
+            return in_array($status, ['pending', 'paid'], true);
         }
 
-        return $existingComment . PHP_EOL . PHP_EOL . $cancellationNote;
+        return true;
     }
 
     /**
@@ -972,32 +985,10 @@ class DefaultController extends Controller
             }
 
             $orderId = (int) $order['id'];
-            $commentPayload = [
-                'comment' => $this->buildCancellationComment($order, $reason),
-            ];
-
-            if (!empty($order['type'])) {
-                $commentPayload['type'] = $order['type'];
-            }
-
-            if (!empty($order['session_id'])) {
-                $commentPayload['session_id'] = $order['session_id'];
-            }
-
-            $commentUpdateResponse = $this->apiClient()->putOrder($orderId, $commentPayload);
-
-            if (!isset($commentUpdateResponse['data'])) {
-                $this->logger()->warning('Order cancellation comment update failed', [
-                    'order_id' => $orderId,
-                    'hash' => $hash,
-                    'response' => $commentUpdateResponse,
-                ]);
-
-                Yii::$app->session->setFlash('shopCancelError', Yii::t('shop', 'We could not save your cancellation reason. Please try again.'));
-                return $this->redirect($this->moduleRouteParams('default/confirmation', ['hash' => $hash]));
-            }
-
-            $cancelResponse = $this->apiClient()->updateOrderStatus($orderId, 'cancelled');
+            $cancelResponse = $this->apiClient()->cancelOrder($orderId, $reason, [
+                'source' => 'customer.self_service',
+                'hash' => (string) $hash,
+            ]);
             if (!isset($cancelResponse['data'])) {
                 $this->logger()->warning('Order cancellation failed', [
                     'order_id' => $orderId,

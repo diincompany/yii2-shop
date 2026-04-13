@@ -29,7 +29,17 @@ use yii\helpers\Html;
         <div class="row">
             <div class="col-md-6">
                 <h6 class="text-muted text-uppercase small mb-2"><?= Yii::t('shop', 'Status') ?></h6>
-                <?php $orderStatus = strtolower(trim((string) ($order['status'] ?? ''))); ?>
+                <?php
+                    $orderStatusMapNormalized = [
+                        '1' => 'pending',
+                        '2' => 'paid',
+                        '3' => 'shipped',
+                        '4' => 'cancelled',
+                        '5' => 'completed',
+                    ];
+                    $orderStatus = strtolower(trim((string) ($order['status'] ?? '')));
+                    $orderStatus = $orderStatusMapNormalized[$orderStatus] ?? $orderStatus;
+                ?>
                 <span class="badge <?= $orderStatus === 'paid' ? 'bg-success' : (in_array($orderStatus, ['cancelled', 'canceled'], true) ? 'bg-danger' : 'bg-warning') ?>">
                     <?php 
                         $statusMap = [
@@ -37,12 +47,10 @@ use yii\helpers\Html;
                             'pending' => Yii::t('shop', 'Pending'),
                             'cancelled' => Yii::t('shop', 'Cancelled'),
                             'canceled' => Yii::t('shop', 'Cancelled'),
-                            'processing' => Yii::t('shop', 'Processing'),
-                            'ready_to_pickup' => Yii::t('shop', 'Ready to Pickup'),
                             'shipped' => Yii::t('shop', 'Shipped'),
-                            'delivered' => Yii::t('shop', 'Delivered'),
+                            'completed' => Yii::t('shop', 'Delivered'),
                         ];
-                        echo Html::encode($statusMap[$orderStatus] ?? ucfirst($order['status'] ?? 'Unknown'));
+                        echo Html::encode($statusMap[$orderStatus] ?? ucfirst((string) ($order['status'] ?? 'Unknown')));
                     ?>
                 </span>
             </div>
