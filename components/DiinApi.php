@@ -9,6 +9,15 @@ use diincompany\shop\contracts\ShopApiClientInterface;
 
 class DiinApi extends Component implements ShopApiClientInterface
 {
+    private const ORDER_STATUS_MAP = [
+        'pending' => 1,
+        'paid' => 2,
+        'shipped' => 3,
+        'cancelled' => 4,
+        'canceled' => 4,
+        'completed' => 5,
+    ];
+
     public string $host;
     public string $merchantCode;
     public string $audience;
@@ -791,6 +800,18 @@ class DiinApi extends Component implements ShopApiClientInterface
         return $this->request($endpoint, null, 'DELETE');
     }
 
+    public function cancelOrder(int $orderId, string $reason, array $meta = [])
+    {
+        $endpoint = "order/{$orderId}/cancel";
+        $payload = array_merge([
+            'cancellation_reason' => $reason,
+        ], $meta);
+
+        $response = $this->request($endpoint, $payload, 'POST');
+
+        return $this->normalizeOrderResponse($response);
+    }
+
     /**
      * Update order status (for payment webhook)
      * @param int $orderId Order ID
@@ -800,8 +821,34 @@ class DiinApi extends Component implements ShopApiClientInterface
     public function updateOrderStatus(int $orderId, string $status)
     {
         $endpoint = "order/{$orderId}/status";
+        $payload = ['status' => $this->normalizeOrderStatusValue($status)];
+        $response = $this->request($endpoint, $payload, 'PUT');
 
-        return $this->request($endpoint, ['status' => $status], 'PUT');
+        $statusCode = (int) ($response['status_code'] ?? 0);
+        if ($statusCode === 404 || strtolower((string) ($response['status'] ?? '')) === 'error') {
+            $this->logger->warning('updateOrderStatus fallback endpoint used', [
+                'primary_endpoint' => $endpoint,
+                'fallback_endpoint' => "order/{$orderId}",
+                'order_id' => $orderId,
+                'status' => $status,
+                'primary_response' => $response,
+            ]);
+
+            return $this->putOrder($orderId, $payload);
+        }
+
+        return $this->normalizeOrderResponse($response);
+    }
+
+    private function normalizeOrderStatusValue($status): int
+    {
+        if (is_int($status) || ctype_digit((string) $status)) {
+            return (int) $status;
+        }
+
+        $normalized = strtolower(trim((string) $status));
+
+        return self::ORDER_STATUS_MAP[$normalized] ?? 0;
     }
 
     /**

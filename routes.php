@@ -9,6 +9,7 @@ return [
     'shop/checkout' => 'shop/default/checkout',
     'shop/order-status' => 'shop/default/order-status',
     'shop/confirmation/<hash>/pdf' => 'shop/default/confirmation-pdf',
+    'shop/confirmation/<hash>/cancel' => 'shop/default/cancel-order',
     'shop/confirmation/<hash>' => 'shop/default/confirmation',
     'shop/get-states' => 'shop/default/get-states',
     'shop/get-cities' => 'shop/default/get-cities',

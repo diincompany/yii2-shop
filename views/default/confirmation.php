@@ -3,6 +3,7 @@
  * Order Confirmation Page
  * @var yii\web\View $this
  * @var array|null $order
+ * @var bool $canCancelOrder
  */
 
 use yii\helpers\Json;
@@ -14,8 +15,17 @@ $this->title = Yii::t('shop', 'Order Confirmation');
     <?= $this->render('includes/confirmation/no-order') ?>
 <?php else: ?>
     <?php
+        $orderStatusMap = [
+            '1' => 'pending',
+            '2' => 'paid',
+            '3' => 'shipped',
+            '4' => 'cancelled',
+            '5' => 'completed',
+        ];
         $orderStatus = strtolower(trim((string) ($order['status'] ?? '')));
+        $orderStatus = $orderStatusMap[$orderStatus] ?? $orderStatus;
         $isPendingPayment = $orderStatus === 'pending';
+        $isCancelledOrder = in_array($orderStatus, ['cancelled', 'canceled'], true);
 
         $payments = (!empty($order['payments']) && is_array($order['payments'])) ? $order['payments'] : [];
         $payment = !empty($payments) ? reset($payments) : [];
@@ -100,6 +110,7 @@ JS,
     ?>
     <?= $this->render('includes/confirmation/success-message', [
         'isPendingPayment' => $isPendingPayment,
+        'isCancelledOrder' => $isCancelledOrder,
     ]) ?>
 
     <!-- Order Details Section -->
@@ -143,7 +154,10 @@ JS,
                 </div>
             </div>
 
-            <?= $this->render('includes/confirmation/action-buttons', ['order' => $order]) ?>
+            <?= $this->render('includes/confirmation/action-buttons', [
+                'order' => $order,
+                'canCancelOrder' => $canCancelOrder ?? false,
+            ]) ?>
         </div>
     </div>
 <?php endif; ?>
