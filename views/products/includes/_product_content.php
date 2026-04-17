@@ -12,9 +12,11 @@
  * @var bool $isProductAvailable
  * @var array $variants
  * @var string $variantSelectorLabel
+ * @var array $variantOptionGroups
  * @var array $variantStocksById
  * @var bool $shouldEnforceVariantStock
  * @var array|null $defaultVariant
+ * @var array $defaultVariantOptions
  * @var callable $buildVariantLabel
  * @var int $selectedStock
  */
@@ -39,9 +41,11 @@
                 'isProductAvailable' => $isProductAvailable,
                 'variants' => $variants,
                 'variantSelectorLabel' => $variantSelectorLabel,
+                'variantOptionGroups' => $variantOptionGroups,
                 'variantStocksById' => $variantStocksById,
                 'shouldEnforceVariantStock' => $shouldEnforceVariantStock,
                 'defaultVariant' => $defaultVariant,
+                'defaultVariantOptions' => $defaultVariantOptions,
                 'buildVariantLabel' => $buildVariantLabel,
                 'selectedStock' => $selectedStock,
             ]) ?>
