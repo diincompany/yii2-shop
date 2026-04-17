@@ -13,9 +13,11 @@ use yii\helpers\Url;
  * @var bool $isProductAvailable
  * @var array $variants
  * @var string $variantSelectorLabel
+ * @var array $variantOptionGroups
  * @var array $variantStocksById
  * @var bool $shouldEnforceVariantStock
  * @var array|null $defaultVariant
+ * @var array $defaultVariantOptions
  * @var callable $buildVariantLabel
  * @var int $selectedStock
  * @var array $gaItemPayload
@@ -61,43 +63,99 @@ $moduleRoute = '/' . $moduleId;
 
         <?php if (!empty($variants)): ?>
             <div class="pt-2">
-                <label class="form-label fw-500 mb-2"><?= Html::encode($variantSelectorLabel) ?></label>
-                <div class="d-flex flex-wrap gap-2 mb-3" role="radiogroup" aria-label="<?= Html::encode($variantSelectorLabel) ?>">
-                    <?php foreach ($variants as $variant): ?>
-                        <?php
-                        $variantId = trim((string) ($variant['id'] ?? ''));
-                        $defaultVariantId = is_array($defaultVariant) ? trim((string) ($defaultVariant['id'] ?? '')) : '';
-                        $isSelected = $defaultVariant !== null && $defaultVariantId !== '' && $defaultVariantId === $variantId;
-                        $variantLabel = $buildVariantLabel($variant);
-                        if ($variantId === '') {
-                            continue;
-                        }
-                        $variantStock = (int) ($variantStocksById[$variantId] ?? 0);
-                        $isVariantInStock = $variantStock > 0;
-                        $disableVariant = $shouldEnforceVariantStock && !$isVariantInStock;
-                        $variantButtonClass = 'btn btn-outline-secondary' . ($disableVariant ? ' disabled' : '');
-                        $variantInputId = 'product-variant-' . (int) ($product['id'] ?? 0) . '-' . preg_replace('/[^a-zA-Z0-9\-_]/', '-', $variantId);
-                        ?>
-                        <input
-                            type="radio"
-                            class="btn-check product-variant-radio"
-                            name="product-variant-<?= (int) ($product['id'] ?? 0) ?>"
-                            id="<?= Html::encode($variantInputId) ?>"
-                            value="<?= Html::encode($variantId) ?>"
-                            autocomplete="off"
-                            <?= $isSelected ? 'checked' : '' ?>
-                            <?= $disableVariant ? 'disabled' : '' ?>
-                        >
-                        <label
-                            class="<?= Html::encode($variantButtonClass) ?>"
-                            for="<?= Html::encode($variantInputId) ?>"
-                            <?= $disableVariant ? 'aria-disabled="true"' : '' ?>
-                            <?= $disableVariant ? 'title="' . Html::encode(Yii::t('shop', 'Sin Existencia')) . '"' : '' ?>
-                        >
-                            <?= Html::encode($variantLabel) ?>
-                        </label>
+                <?php if (!empty($variantOptionGroups)): ?>
+                    <?php foreach ($variantOptionGroups as $group): ?>
+                        <div class="product-option-group mb-3" data-option-key="<?= Html::encode($group['key']) ?>">
+                            <label class="form-label fw-500 mb-2"><?= Html::encode($group['label']) ?></label>
+                            <div class="d-flex flex-wrap gap-2" role="group" aria-label="<?= Html::encode($group['label']) ?>">
+                                <?php foreach ($group['values'] as $value): ?>
+                                    <?php
+                                    $isSelected = ($defaultVariantOptions[$group['key']] ?? null) === ($value['value'] ?? null);
+                                    $buttonClass = 'btn btn-outline-secondary product-option-button' . ($isSelected ? ' active' : '');
+                                    ?>
+                                    <button
+                                        type="button"
+                                        class="<?= Html::encode($buttonClass) ?>"
+                                        data-option-key="<?= Html::encode($group['key']) ?>"
+                                        data-option-value="<?= Html::encode($value['value']) ?>"
+                                        aria-pressed="<?= $isSelected ? 'true' : 'false' ?>"
+                                    >
+                                        <?= Html::encode($value['label']) ?>
+                                    </button>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
                     <?php endforeach; ?>
-                </div>
+                <?php else: ?>
+                    <label class="form-label fw-500 mb-2"><?= Html::encode($variantSelectorLabel) ?></label>
+                    <div class="d-flex flex-wrap gap-2 mb-3" role="radiogroup" aria-label="<?= Html::encode($variantSelectorLabel) ?>">
+                        <?php foreach ($variants as $variant): ?>
+                            <?php
+                            $variantId = trim((string) ($variant['id'] ?? ''));
+                            $defaultVariantId = is_array($defaultVariant) ? trim((string) ($defaultVariant['id'] ?? '')) : '';
+                            $isSelected = $defaultVariant !== null && $defaultVariantId !== '' && $defaultVariantId === $variantId;
+                            $variantLabel = $buildVariantLabel($variant);
+                            if ($variantId === '') {
+                                continue;
+                            }
+                            $variantStock = (int) ($variantStocksById[$variantId] ?? 0);
+                            $isVariantInStock = $variantStock > 0;
+                            $disableVariant = $shouldEnforceVariantStock && !$isVariantInStock;
+                            $variantButtonClass = 'btn btn-outline-secondary' . ($disableVariant ? ' disabled' : '');
+                            $variantInputId = 'product-variant-visible-' . (int) ($product['id'] ?? 0) . '-' . preg_replace('/[^a-zA-Z0-9\-_]/', '-', $variantId);
+                            ?>
+                            <input
+                                type="radio"
+                                class="btn-check product-variant-radio"
+                                name="product-variant-visible-<?= (int) ($product['id'] ?? 0) ?>"
+                                id="<?= Html::encode($variantInputId) ?>"
+                                value="<?= Html::encode($variantId) ?>"
+                                autocomplete="off"
+                                <?= $isSelected ? 'checked' : '' ?>
+                                <?= $disableVariant ? 'disabled' : '' ?>
+                            >
+                            <label
+                                class="<?= Html::encode($variantButtonClass) ?>"
+                                for="<?= Html::encode($variantInputId) ?>"
+                                <?= $disableVariant ? 'aria-disabled="true"' : '' ?>
+                                <?= $disableVariant ? 'title="' . Html::encode(Yii::t('shop', 'Sin Existencia')) . '"' : '' ?>
+                            >
+                                <?= Html::encode($variantLabel) ?>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php if (!empty($variantOptionGroups)): ?>
+                    <div class="d-none" role="radiogroup" aria-label="<?= Html::encode($variantSelectorLabel) ?>">
+                        <?php foreach ($variants as $variant): ?>
+                            <?php
+                            $variantId = trim((string) ($variant['id'] ?? ''));
+                            $defaultVariantId = is_array($defaultVariant) ? trim((string) ($defaultVariant['id'] ?? '')) : '';
+                            $isSelected = $defaultVariant !== null && $defaultVariantId !== '' && $defaultVariantId === $variantId;
+                            $variantLabel = $buildVariantLabel($variant);
+                            if ($variantId === '') {
+                                continue;
+                            }
+                            $variantStock = (int) ($variantStocksById[$variantId] ?? 0);
+                            $isVariantInStock = $variantStock > 0;
+                            $disableVariant = $shouldEnforceVariantStock && !$isVariantInStock;
+                            $variantInputId = 'product-variant-' . (int) ($product['id'] ?? 0) . '-' . preg_replace('/[^a-zA-Z0-9\-_]/', '-', $variantId);
+                            ?>
+                            <input
+                                type="radio"
+                                class="product-variant-radio"
+                                name="product-variant-<?= (int) ($product['id'] ?? 0) ?>"
+                                id="<?= Html::encode($variantInputId) ?>"
+                                value="<?= Html::encode($variantId) ?>"
+                                autocomplete="off"
+                                <?= $isSelected ? 'checked' : '' ?>
+                                <?= $disableVariant ? 'disabled' : '' ?>
+                            >
+                            <label for="<?= Html::encode($variantInputId) ?>"><?= Html::encode($variantLabel) ?></label>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
 

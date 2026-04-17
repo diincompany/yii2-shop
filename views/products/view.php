@@ -66,12 +66,14 @@ $shouldEnforceVariantStock = $hasVariants === 1 && (
 
 $variantSelectorLabel = Yii::t('shop', 'Variant');
 $variantOptionNames = [];
+$variantOptionGroupsMap = [];
 
 foreach ($variants as $variant) {
     $optionValues = is_array($variant['option_values'] ?? null) ? $variant['option_values'] : [];
 
     foreach ($optionValues as $optionValue) {
         $optionName = trim((string) ($optionValue['option_name'] ?? ''));
+        $optionValueText = trim((string) ($optionValue['value'] ?? ''));
 
         if ($optionName === '') {
             continue;
@@ -82,7 +84,34 @@ foreach ($variants as $variant) {
         if (!array_key_exists($normalizedOptionName, $variantOptionNames)) {
             $variantOptionNames[$normalizedOptionName] = $optionName;
         }
+
+        if (!array_key_exists($normalizedOptionName, $variantOptionGroupsMap)) {
+            $variantOptionGroupsMap[$normalizedOptionName] = [
+                'key' => $normalizedOptionName,
+                'label' => $optionName,
+                'values' => [],
+            ];
+        }
+
+        if ($optionValueText === '') {
+            continue;
+        }
+
+        $normalizedOptionValue = mb_strtolower(preg_replace('/\s+/', ' ', $optionValueText) ?? '', 'UTF-8');
+
+        if (!array_key_exists($normalizedOptionValue, $variantOptionGroupsMap[$normalizedOptionName]['values'])) {
+            $variantOptionGroupsMap[$normalizedOptionName]['values'][$normalizedOptionValue] = [
+                'value' => $normalizedOptionValue,
+                'label' => $optionValueText,
+            ];
+        }
     }
+}
+
+$variantOptionGroups = [];
+foreach ($variantOptionGroupsMap as $group) {
+    $group['values'] = array_values($group['values']);
+    $variantOptionGroups[] = $group;
 }
 
 if (count($variantOptionNames) === 1) {
@@ -176,6 +205,25 @@ if ($defaultVariant !== null) {
 
 $selectedPrice = $formatPrice($selectedPriceAmount);
 $selectedSalePrice = $selectedSalePriceAmount > 0 ? $formatPrice($selectedSalePriceAmount) : null;
+$defaultVariantOptions = [];
+
+if ($defaultVariant !== null) {
+    $defaultOptionValues = is_array($defaultVariant['option_values'] ?? null) ? $defaultVariant['option_values'] : [];
+
+    foreach ($defaultOptionValues as $defaultOptionValue) {
+        $optionName = trim((string) ($defaultOptionValue['option_name'] ?? ''));
+        $optionValue = trim((string) ($defaultOptionValue['value'] ?? ''));
+
+        if ($optionName === '' || $optionValue === '') {
+            continue;
+        }
+
+        $defaultVariantOptions[mb_strtolower($optionName, 'UTF-8')] = mb_strtolower(
+            preg_replace('/\s+/', ' ', $optionValue) ?? '',
+            'UTF-8'
+        );
+    }
+}
 
 if (!empty($variants)) {
     $isProductAvailable = $shouldEnforceVariantStock ? $selectedStock > 0 : true;
@@ -237,12 +285,29 @@ foreach ($variants as $variant) {
 
     $variantStock = $extractVariantStock($variant, $baseStock);
     $isSelectable = !$shouldEnforceVariantStock || $variantStock > 0;
+    $variantOptionsMap = [];
+    $variantOptionValues = is_array($variant['option_values'] ?? null) ? $variant['option_values'] : [];
+
+    foreach ($variantOptionValues as $optionValue) {
+        $optionName = trim((string) ($optionValue['option_name'] ?? ''));
+        $optionValueText = trim((string) ($optionValue['value'] ?? ''));
+
+        if ($optionName === '' || $optionValueText === '') {
+            continue;
+        }
+
+        $variantOptionsMap[mb_strtolower($optionName, 'UTF-8')] = mb_strtolower(
+            preg_replace('/\s+/', ' ', $optionValueText) ?? '',
+            'UTF-8'
+        );
+    }
 
     $variantStocksById[$variantId] = $variantStock;
 
     $variantsForJs[] = [
         'id' => $variantId,
         'label' => $buildVariantLabel($variant),
+        'options' => $variantOptionsMap,
         'price' => ($variant['price'] ?? null) !== null && $variant['price'] !== '' ? (float) $variant['price'] : $basePriceAmount,
         'sale_price' => ($variant['sale_price'] ?? null) !== null && $variant['sale_price'] !== '' ? (float) $variant['sale_price'] : 0,
         'stock' => $variantStock,
@@ -292,9 +357,11 @@ if (class_exists($gaTrackerClass)) {
     'isProductAvailable' => $isProductAvailable,
     'variants' => $variants,
     'variantSelectorLabel' => $variantSelectorLabel,
+    'variantOptionGroups' => $variantOptionGroups,
     'variantStocksById' => $variantStocksById,
     'shouldEnforceVariantStock' => $shouldEnforceVariantStock,
     'defaultVariant' => $defaultVariant,
+    'defaultVariantOptions' => $defaultVariantOptions,
     'buildVariantLabel' => $buildVariantLabel,
     'selectedStock' => $selectedStock,
                 'gaItemPayload' => $gaItemPayload,
@@ -306,5 +373,6 @@ if (class_exists($gaTrackerClass)) {
 
 <?= $this->render('includes/_variant_selector_script', [
     'variantsForJs' => $variantsForJs,
+    'defaultVariantOptions' => $defaultVariantOptions,
 ]) ?>
 </div>
