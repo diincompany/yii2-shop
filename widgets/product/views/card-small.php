@@ -20,12 +20,18 @@ use yii\helpers\Url;
         </a>
     </div>
 
-    <div class="product-card-info">
-        <h6 class="product-title">
-            <a href="<?= Url::to(['/shop/products/view', 'slug' => $product['slug']]) ?>" tabindex="0">
-                <?= Html::encode($product['name']) ?>
-            </a>
-        </h6>
+        <div class="product-card-info">
+            <h6 class="product-title">
+                <a href="<?= Url::to(['/shop/products/view', 'slug' => $product['slug']]) ?>" tabindex="0">
+                    <?= Html::encode($product['name']) ?>
+                </a>
+            </h6>
+
+        <?php if ($product['backorder_available']): ?>
+            <div class="mb-2">
+                <span class="badge bg-warning text-dark"><?= Yii::t('shop', 'Backorder') ?></span>
+            </div>
+        <?php endif; ?>
 
         <div class="product-price">
             <?php if ($product['has_sale_price']): ?>
@@ -35,6 +41,12 @@ use yii\helpers\Url;
                 <span class="text-primary">L. <?= number_format($product['price'], 2) ?></span>
             <?php endif; ?>
         </div>
+
+        <?php if ($product['backorder_available'] && (int)($product['stock'] ?? 0) <= 0): ?>
+            <div class="small text-warning-emphasis mb-2">
+                <?= Html::encode($product['backorder_message'] ?: Yii::t('shop', 'Backorder available')) ?>
+            </div>
+        <?php endif; ?>
 
         <div class="produc-card-cart">
             <a class="link-effect" href="<?= Url::to(['/shop/products/view', 'slug' => $product['slug']]) ?>">

@@ -14,11 +14,15 @@
  * @var string $variantSelectorLabel
  * @var array $variantOptionGroups
  * @var array $variantStocksById
+ * @var array $variantTracksStockById
  * @var bool $shouldEnforceVariantStock
  * @var array|null $defaultVariant
  * @var array $defaultVariantOptions
  * @var callable $buildVariantLabel
  * @var int $selectedStock
+ * @var bool $selectedVariantTracksStock
+ * @var bool $backorderAvailable
+ * @var string $backorderMessage
  */
 ?>
 
@@ -43,11 +47,15 @@
                 'variantSelectorLabel' => $variantSelectorLabel,
                 'variantOptionGroups' => $variantOptionGroups,
                 'variantStocksById' => $variantStocksById,
+                'variantTracksStockById' => $variantTracksStockById,
                 'shouldEnforceVariantStock' => $shouldEnforceVariantStock,
                 'defaultVariant' => $defaultVariant,
                 'defaultVariantOptions' => $defaultVariantOptions,
                 'buildVariantLabel' => $buildVariantLabel,
                 'selectedStock' => $selectedStock,
+                'selectedVariantTracksStock' => $selectedVariantTracksStock,
+                'backorderAvailable' => $backorderAvailable,
+                'backorderMessage' => $backorderMessage,
             ]) ?>
         </div>
     </div>

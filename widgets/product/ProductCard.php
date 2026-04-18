@@ -68,11 +68,14 @@ class ProductCard extends Widget
         $mainImage = (string)($product['main_image'] ?? $this->fallbackImage);
         $price = (float)($product['price'] ?? 0);
         $salePrice = (float)($product['sale_price'] ?? 0);
+        $stock = (int)($product['stock'] ?? 0);
         $variants = is_array($product['variants'] ?? null) ? $product['variants'] : [];
         $hasVariantsFlag = (int)($product['has_variants'] ?? ($product['product_has_variants'] ?? 0)) === 1;
         $hasVariants = $hasVariantsFlag || !empty($variants);
         $hasDiscount = $salePrice > 0 && $salePrice < $price;
         $currentPrice = $hasDiscount ? $salePrice : $price;
+        $backorderAvailable = (bool)($product['backorder_available'] ?? false);
+        $backorderMessage = trim((string)($product['backorder_message'] ?? ''));
         $discountPercent = $hasDiscount && $price > 0
             ? (int)round((($price - $salePrice) / $price) * 100)
             : 0;
@@ -97,6 +100,9 @@ class ProductCard extends Widget
             'original_price' => $hasDiscount ? $price : null,
             'discount_percent' => $discountPercent,
             'has_variants' => $hasVariants,
+            'stock' => $stock,
+            'backorder_available' => $backorderAvailable,
+            'backorder_message' => $backorderMessage,
             'is_new' => !empty($product['is_new']),
             'rating' => (int)($product['rating'] ?? 0),
         ];

@@ -15,12 +15,16 @@ use yii\helpers\Url;
  * @var string $variantSelectorLabel
  * @var array $variantOptionGroups
  * @var array $variantStocksById
+ * @var array $variantTracksStockById
  * @var bool $shouldEnforceVariantStock
  * @var array|null $defaultVariant
  * @var array $defaultVariantOptions
  * @var callable $buildVariantLabel
  * @var int $selectedStock
+ * @var bool $selectedVariantTracksStock
  * @var array $gaItemPayload
+ * @var bool $backorderAvailable
+ * @var string $backorderMessage
  */
 
 $moduleId = trim((string) (Yii::$app->controller->module->id ?? ''), '/');
@@ -28,6 +32,10 @@ if ($moduleId === '' || $moduleId === Yii::$app->id) {
     $moduleId = 'shop';
 }
 $moduleRoute = '/' . $moduleId;
+$hasVariantOptions = !empty($variants);
+$initialMaxQuantity = ($backorderAvailable || ($hasVariantOptions && !$selectedVariantTracksStock))
+    ? null
+    : max(1, $selectedStock);
 ?>
 
 <div class="col-lg-6 ps-lg-5">
@@ -42,11 +50,17 @@ $moduleRoute = '/' . $moduleId;
             <h1 class="display-5 fw-bolder"><?= Html::encode($product['name']) ?></h1>
         </div>
 
-        <?php if ($isProductAvailable): ?>
+        <?php if ($backorderAvailable && $selectedStock <= 0): ?>
+            <div id="product-stock-badge" class="badge bg-warning text-dark mb-3"><?= Yii::t('shop', 'Backorder') ?></div>
+        <?php elseif ($isProductAvailable): ?>
             <div id="product-stock-badge" class="badge bg-success mb-3"><?= Yii::t('shop', 'Disponible') ?></div>
         <?php else: ?>
             <div id="product-stock-badge" class="badge bg-danger mb-3"><?= Yii::t('shop', 'Sin Existencia') ?></div>
         <?php endif; ?>
+
+        <div id="product-backorder-message" class="alert alert-warning py-2 px-3 mb-3 <?= ($backorderAvailable && $selectedStock <= 0) ? '' : 'd-none' ?>">
+            <?= Html::encode($backorderMessage !== '' ? $backorderMessage : Yii::t('shop', 'Backorder available')) ?>
+        </div>
 
         <div class="product-description">
             <?= $productDescription ?>
@@ -99,8 +113,9 @@ $moduleRoute = '/' . $moduleId;
                                 continue;
                             }
                             $variantStock = (int) ($variantStocksById[$variantId] ?? 0);
+                            $variantTracksStock = (bool) ($variantTracksStockById[$variantId] ?? false);
                             $isVariantInStock = $variantStock > 0;
-                            $disableVariant = $shouldEnforceVariantStock && !$isVariantInStock;
+                            $disableVariant = $variantTracksStock && !$isVariantInStock;
                             $variantButtonClass = 'btn btn-outline-secondary' . ($disableVariant ? ' disabled' : '');
                             $variantInputId = 'product-variant-visible-' . (int) ($product['id'] ?? 0) . '-' . preg_replace('/[^a-zA-Z0-9\-_]/', '-', $variantId);
                             ?>
@@ -138,8 +153,9 @@ $moduleRoute = '/' . $moduleId;
                                 continue;
                             }
                             $variantStock = (int) ($variantStocksById[$variantId] ?? 0);
+                            $variantTracksStock = (bool) ($variantTracksStockById[$variantId] ?? false);
                             $isVariantInStock = $variantStock > 0;
-                            $disableVariant = $shouldEnforceVariantStock && !$isVariantInStock;
+                            $disableVariant = $variantTracksStock && !$isVariantInStock;
                             $variantInputId = 'product-variant-' . (int) ($product['id'] ?? 0) . '-' . preg_replace('/[^a-zA-Z0-9\-_]/', '-', $variantId);
                             ?>
                             <input
@@ -162,7 +178,17 @@ $moduleRoute = '/' . $moduleId;
         <div class="product-detail-actions d-flex flex-wrap pt-3">
             <div class="cart-qty me-3 mb-3">
                 <div class="dec qty-btn qty_btn">-</div>
-                <input class="cart-qty-input form-control" type="text" name="qtybutton" value="1" data-max-stock="<?= max(1, $selectedStock) ?>" <?= $isProductAvailable ? '' : 'disabled' ?>>
+                <input
+                    class="cart-qty-input form-control"
+                    type="number"
+                    min="1"
+                    step="1"
+                    inputmode="numeric"
+                    name="qtybutton"
+                    value="1"
+                    <?= $initialMaxQuantity !== null ? 'data-max-stock="' . (int) $initialMaxQuantity . '"' : '' ?>
+                    <?= $isProductAvailable ? '' : 'disabled' ?>
+                >
                 <div class="inc qty-btn qty_btn">+</div>
             </div>
             <div class="cart-button mb-3 d-flex">

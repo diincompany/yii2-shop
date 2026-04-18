@@ -143,6 +143,8 @@ if (class_exists($gaTrackerClass) && !empty($items)) {
                             <?php
                                 $variant = $toArray($item['variant'] ?? null);
                                 $variantSnapshot = $toArray($item['variant_snapshot'] ?? ($item['product_variant_snapshot'] ?? null));
+                                $isBackorder = (bool) ($item['is_backorder'] ?? false);
+                                $backorderEstimatedDate = trim((string) ($item['backorder_estimated_date'] ?? ''));
 
                                 $variantId = (int) ($item['product_variant_id'] ?? ($item['variant_id'] ?? ($variantSnapshot['variant_id'] ?? 0)));
                                 $hasVariants = (int) ($item['has_variants'] ?? ($item['product_has_variants'] ?? 0));
@@ -233,6 +235,18 @@ if (class_exists($gaTrackerClass) && !empty($items)) {
                                     <a class="text-reset" href="<?= Url::to([$moduleRoute . '/products/view', 'id' => $item['product_id']]) ?>">
                                         <?= Html::encode($item['product_name'] ?? Yii::t('shop', 'product_name')) ?>
                                     </a>
+                                    <?php if ($isBackorder): ?>
+                                        <div class="mt-1">
+                                            <span class="badge bg-warning text-dark"><?= Yii::t('shop', 'Backorder') ?></span>
+                                        </div>
+                                        <?php if ($backorderEstimatedDate !== ''): ?>
+                                            <div class="small text-muted product-backorder-note">
+                                                <?= Yii::t('shop', 'Available on {date}', [
+                                                    'date' => Yii::$app->formatter->asDate($backorderEstimatedDate, 'long'),
+                                                ]) ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
                                     <?php if ($variantLabel !== ''): ?>
                                         <div class="small text-muted product-variant-label"><?= Yii::t('shop', 'Variant') ?>: <?= Html::encode($variantLabel) ?></div>
                                     <?php endif; ?>

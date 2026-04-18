@@ -67,6 +67,8 @@ use yii\helpers\Url;
             }
 
             $variantSnapshot = is_array($item['variant_snapshot'] ?? null) ? $item['variant_snapshot'] : [];
+            $isBackorder = (bool) ($item['is_backorder'] ?? false);
+            $backorderEstimatedDate = trim((string) ($item['backorder_estimated_date'] ?? ''));
             $displayPrice = (float) ($item['price_amount'] ?? 0);
             $variantPrice = (float) ($variantSnapshot['price'] ?? ($item['variant_price'] ?? 0));
             $variantSalePrice = (float) ($variantSnapshot['sale_price'] ?? ($item['variant_sale_price'] ?? 0));
@@ -94,12 +96,22 @@ use yii\helpers\Url;
                         <a class="text-mode fw-500" href="<?= Url::to([$moduleRoute . '/products/view', 'id' => $item['product_id']]) ?>">
                             <?= Html::encode($item['product_name'] ?? Yii::t('shop', 'product_name')) ?>
                         </a>
+                        <?php if ($isBackorder): ?>
+                            <span class="badge bg-warning text-dark ms-2"><?= Yii::t('shop', 'Backorder') ?></span>
+                        <?php endif; ?>
                         <?php if ($variantLabel !== ''): ?>
                             <span class="m-0 text-muted small w-100 d-block"><?= Yii::t('shop', 'Variant') ?>: <?= Html::encode($variantLabel) ?></span>
                         <?php endif; ?>
                         <span class="m-0 text-muted w-100 d-block">
                             L<?= Yii::$app->formatter->asDecimal($displayPrice, 2) ?>
                         </span>
+                        <?php if ($isBackorder && $backorderEstimatedDate !== ''): ?>
+                            <span class="m-0 text-muted small w-100 d-block">
+                                <?= Yii::t('shop', 'Available on {date}', [
+                                    'date' => Yii::$app->formatter->asDate($backorderEstimatedDate, 'long'),
+                                ]) ?>
+                            </span>
+                        <?php endif; ?>
                     </p>
                     <div class="d-flex align-items-center">
                         <span class="small me-2">

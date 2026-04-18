@@ -37,6 +37,16 @@ $moduleRoute = '/' . $moduleId;
         <div class="card-body p-3">
             <div class="card-title small mb-0"><?= Html::encode($product['name']) ?></div>
             <div class="text-xs text-gray-500"><?= Html::encode($product['short_description'] ?? '') ?></div>
+            <?php if ($product['backorder_available']): ?>
+                <div class="mt-2">
+                    <span class="badge bg-warning text-dark"><?= Yii::t('shop', 'Backorder') ?></span>
+                </div>
+            <?php endif; ?>
+            <?php if ($product['backorder_available'] && (int)($product['stock'] ?? 0) <= 0): ?>
+                <div class="small text-warning-emphasis mt-2">
+                    <?= Html::encode($product['backorder_message'] ?: Yii::t('shop', 'Backorder available')) ?>
+                </div>
+            <?php endif; ?>
         </div>
     </a>
 </div>
