@@ -19,6 +19,8 @@
  * @var array $defaultVariantOptions
  * @var callable $buildVariantLabel
  * @var int $selectedStock
+ * @var bool $backorderAvailable
+ * @var string $backorderMessage
  */
 ?>
 
@@ -48,6 +50,8 @@
                 'defaultVariantOptions' => $defaultVariantOptions,
                 'buildVariantLabel' => $buildVariantLabel,
                 'selectedStock' => $selectedStock,
+                'backorderAvailable' => $backorderAvailable,
+                'backorderMessage' => $backorderMessage,
             ]) ?>
         </div>
     </div>

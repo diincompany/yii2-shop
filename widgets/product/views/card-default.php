@@ -30,6 +30,12 @@ $moduleRoute = '/' . $moduleId;
             </div>
         <?php endif; ?>
 
+        <?php if ($product['backorder_available']): ?>
+            <div class="badge-ribbon badge-ribbon-right" style="top: 2.75rem;">
+                <span class="badge bg-warning text-dark"><?= Yii::t('shop', 'Backorder') ?></span>
+            </div>
+        <?php endif; ?>
+
         <div class="product-media">
         <a
             href="<?= Url::to([$moduleRoute . '/products/view', 'slug' => $product['slug']]) ?>"
@@ -74,6 +80,12 @@ $moduleRoute = '/' . $moduleId;
                 </del>
             <?php endif; ?>
         </div>
+
+        <?php if ($product['backorder_available'] && (int)($product['stock'] ?? 0) <= 0): ?>
+            <div class="small text-warning-emphasis mb-2">
+                <?= Html::encode($product['backorder_message'] ?: Yii::t('shop', 'Backorder available')) ?>
+            </div>
+        <?php endif; ?>
 
         <?php if ($product['id'] > 0): ?>
             <div class="product-cart-btn">

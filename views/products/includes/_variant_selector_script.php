@@ -3,6 +3,7 @@
  * @var yii\web\View $this
  * @var array $variantsForJs
  * @var array $defaultVariantOptions
+ * @var array $product
  */
 
 if (empty($variantsForJs)) {
@@ -13,6 +14,10 @@ $variantsJson = json_encode($variantsForJs, JSON_UNESCAPED_SLASHES | JSON_UNESCA
 $defaultVariantOptionsJson = json_encode($defaultVariantOptions ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 $availableTextJson = json_encode(Yii::t('shop', 'Disponible'));
 $outOfStockTextJson = json_encode(Yii::t('shop', 'Sin Existencia'));
+$backorderTextJson = json_encode(Yii::t('shop', 'Backorder'));
+$backorderAvailableTextJson = json_encode(Yii::t('shop', 'Backorder available'));
+$backorderMessageJson = json_encode(trim((string)($product['backorder_message'] ?? '')));
+$productBackorderAvailableJson = json_encode((bool)($product['backorder_available'] ?? false));
 
 $this->registerJs(<<<JS
 (function () {
@@ -25,8 +30,13 @@ $this->registerJs(<<<JS
     var priceDisplay = document.getElementById('product-price-display');
     var qtyInput = document.querySelector('.product-detail-actions .cart-qty-input');
     var addButton = document.querySelector('.product-detail-actions .add-to-cart-btn');
+    var backorderMessage = document.getElementById('product-backorder-message');
     var availableText = $availableTextJson;
     var outOfStockText = $outOfStockTextJson;
+    var backorderText = $backorderTextJson;
+    var backorderAvailableText = $backorderAvailableTextJson;
+    var resolvedBackorderMessage = $backorderMessageJson;
+    var productBackorderAvailable = Boolean($productBackorderAvailableJson);
     var selectedOptions = {};
 
     if (!variantRadios.length || !variants.length || !stockBadge || !priceDisplay) {
@@ -178,11 +188,16 @@ $this->registerJs(<<<JS
         var trackStock = Number(variant.track_stock || 0) === 1;
         var selectable = Number(variant.is_selectable || 0) === 1;
         var stock = Number(variant.stock || 0);
-        var hasStock = !trackStock || (selectable && stock > 0);
+        var canBackorder = productBackorderAvailable && trackStock && stock <= 0;
+        var hasStock = !trackStock || (selectable && stock > 0) || canBackorder;
 
-        stockBadge.textContent = hasStock ? availableText : outOfStockText;
-        stockBadge.classList.remove('bg-success', 'bg-danger');
-        stockBadge.classList.add(hasStock ? 'bg-success' : 'bg-danger');
+        stockBadge.textContent = canBackorder ? backorderText : (hasStock ? availableText : outOfStockText);
+        stockBadge.classList.remove('bg-success', 'bg-danger', 'bg-warning', 'text-dark');
+        if (canBackorder) {
+            stockBadge.classList.add('bg-warning', 'text-dark');
+        } else {
+            stockBadge.classList.add(hasStock ? 'bg-success' : 'bg-danger');
+        }
 
         if (qtyInput) {
             qtyInput.setAttribute('data-max-stock', String(Math.max(stock, 1)));
@@ -202,6 +217,15 @@ $this->registerJs(<<<JS
 
         if (addButton) {
             addButton.disabled = !hasStock;
+        }
+
+        if (backorderMessage) {
+            if (canBackorder) {
+                backorderMessage.classList.remove('d-none');
+                backorderMessage.textContent = resolvedBackorderMessage || backorderAvailableText;
+            } else {
+                backorderMessage.classList.add('d-none');
+            }
         }
     }
 
@@ -234,8 +258,12 @@ $this->registerJs(<<<JS
         }
 
         stockBadge.textContent = outOfStockText;
-        stockBadge.classList.remove('bg-success');
+        stockBadge.classList.remove('bg-success', 'bg-warning', 'text-dark');
         stockBadge.classList.add('bg-danger');
+
+        if (backorderMessage) {
+            backorderMessage.classList.add('d-none');
+        }
     }
 
     variantRadios.forEach(function (radio) {

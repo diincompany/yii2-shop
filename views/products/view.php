@@ -34,6 +34,8 @@ $formatPrice = static function ($price): array {
 $basePriceAmount = (float) ($product['price'] ?? 0);
 $baseSalePriceAmount = (float) ($product['sale_price'] ?? 0);
 $baseStock = (int) ($product['stock'] ?? 0);
+$backorderAvailable = (bool) ($product['backorder_available'] ?? false);
+$backorderMessage = trim((string) ($product['backorder_message'] ?? ''));
 
 $variantsRaw = is_array($product['variants'] ?? null) ? $product['variants'] : [];
 $variants = array_values(array_filter($variantsRaw, static function ($variant) {
@@ -226,9 +228,9 @@ if ($defaultVariant !== null) {
 }
 
 if (!empty($variants)) {
-    $isProductAvailable = $shouldEnforceVariantStock ? $selectedStock > 0 : true;
+    $isProductAvailable = $shouldEnforceVariantStock ? ($selectedStock > 0 || $backorderAvailable) : true;
 } else {
-    $isProductAvailable = $selectedStock > 0;
+    $isProductAvailable = $selectedStock > 0 || $backorderAvailable;
 }
 
 $seoMainImage = (string) (
@@ -284,7 +286,7 @@ foreach ($variants as $variant) {
     }
 
     $variantStock = $extractVariantStock($variant, $baseStock);
-    $isSelectable = !$shouldEnforceVariantStock || $variantStock > 0;
+    $isSelectable = !$shouldEnforceVariantStock || $variantStock > 0 || $backorderAvailable;
     $variantOptionsMap = [];
     $variantOptionValues = is_array($variant['option_values'] ?? null) ? $variant['option_values'] : [];
 
@@ -313,6 +315,7 @@ foreach ($variants as $variant) {
         'stock' => $variantStock,
         'track_stock' => $shouldEnforceVariantStock ? 1 : 0,
         'is_selectable' => $isSelectable ? 1 : 0,
+        'backorder_available' => $backorderAvailable ? 1 : 0,
     ];
 }
 
@@ -364,7 +367,9 @@ if (class_exists($gaTrackerClass)) {
     'defaultVariantOptions' => $defaultVariantOptions,
     'buildVariantLabel' => $buildVariantLabel,
     'selectedStock' => $selectedStock,
-                'gaItemPayload' => $gaItemPayload,
+    'backorderAvailable' => $backorderAvailable,
+    'backorderMessage' => $backorderMessage,
+    'gaItemPayload' => $gaItemPayload,
 ]) ?>
 
 <?= $this->render('includes/_related_products', [
@@ -374,5 +379,6 @@ if (class_exists($gaTrackerClass)) {
 <?= $this->render('includes/_variant_selector_script', [
     'variantsForJs' => $variantsForJs,
     'defaultVariantOptions' => $defaultVariantOptions,
+    'product' => $product,
 ]) ?>
 </div>

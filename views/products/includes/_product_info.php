@@ -21,6 +21,8 @@ use yii\helpers\Url;
  * @var callable $buildVariantLabel
  * @var int $selectedStock
  * @var array $gaItemPayload
+ * @var bool $backorderAvailable
+ * @var string $backorderMessage
  */
 
 $moduleId = trim((string) (Yii::$app->controller->module->id ?? ''), '/');
@@ -42,11 +44,17 @@ $moduleRoute = '/' . $moduleId;
             <h1 class="display-5 fw-bolder"><?= Html::encode($product['name']) ?></h1>
         </div>
 
-        <?php if ($isProductAvailable): ?>
+        <?php if ($backorderAvailable && $selectedStock <= 0): ?>
+            <div id="product-stock-badge" class="badge bg-warning text-dark mb-3"><?= Yii::t('shop', 'Backorder') ?></div>
+        <?php elseif ($isProductAvailable): ?>
             <div id="product-stock-badge" class="badge bg-success mb-3"><?= Yii::t('shop', 'Disponible') ?></div>
         <?php else: ?>
             <div id="product-stock-badge" class="badge bg-danger mb-3"><?= Yii::t('shop', 'Sin Existencia') ?></div>
         <?php endif; ?>
+
+        <div id="product-backorder-message" class="alert alert-warning py-2 px-3 mb-3 <?= ($backorderAvailable && $selectedStock <= 0) ? '' : 'd-none' ?>">
+            <?= Html::encode($backorderMessage !== '' ? $backorderMessage : Yii::t('shop', 'Backorder available')) ?>
+        </div>
 
         <div class="product-description">
             <?= $productDescription ?>
