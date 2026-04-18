@@ -190,6 +190,7 @@ $this->registerJs(<<<JS
         var stock = Number(variant.stock || 0);
         var canBackorder = productBackorderAvailable && trackStock && stock <= 0;
         var hasStock = !trackStock || (selectable && stock > 0) || canBackorder;
+        var shouldLimitQuantity = trackStock && !canBackorder;
 
         stockBadge.textContent = canBackorder ? backorderText : (hasStock ? availableText : outOfStockText);
         stockBadge.classList.remove('bg-success', 'bg-danger', 'bg-warning', 'text-dark');
@@ -200,7 +201,12 @@ $this->registerJs(<<<JS
         }
 
         if (qtyInput) {
-            qtyInput.setAttribute('data-max-stock', String(Math.max(stock, 1)));
+            if (shouldLimitQuantity) {
+                qtyInput.setAttribute('data-max-stock', String(Math.max(stock, 1)));
+            } else {
+                qtyInput.removeAttribute('data-max-stock');
+            }
+
             qtyInput.disabled = !hasStock;
 
             if (!hasStock) {
@@ -209,7 +215,7 @@ $this->registerJs(<<<JS
                 var current = Number(qtyInput.value || 1);
                 if (current < 1) {
                     qtyInput.value = '1';
-                } else if (current > stock) {
+                } else if (shouldLimitQuantity && current > stock) {
                     qtyInput.value = String(stock);
                 }
             }

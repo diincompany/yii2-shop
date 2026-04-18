@@ -31,9 +31,43 @@ $formatPrice = static function ($price): array {
     return [$parts[0], $parts[1]];
 };
 
+$stockKeys = [
+    'stock',
+    'available_stock',
+    'inventory_quantity',
+    'stock_quantity',
+    'quantity_available',
+    'available_quantity',
+    'on_hand',
+];
+
+$resolveStockData = static function (array $source) use ($stockKeys): array {
+    foreach ($stockKeys as $key) {
+        if (!array_key_exists($key, $source)) {
+            continue;
+        }
+
+        $value = $source[$key];
+        if ($value === null || $value === '') {
+            continue;
+        }
+
+        return [
+            'value' => (int) $value,
+            'explicit' => true,
+        ];
+    }
+
+    return [
+        'value' => 0,
+        'explicit' => false,
+    ];
+};
+
 $basePriceAmount = (float) ($product['price'] ?? 0);
 $baseSalePriceAmount = (float) ($product['sale_price'] ?? 0);
-$baseStock = (int) ($product['stock'] ?? 0);
+$baseStockData = $resolveStockData($product);
+$baseStock = $baseStockData['value'];
 $backorderAvailable = (bool) ($product['backorder_available'] ?? false);
 $backorderMessage = trim((string) ($product['backorder_message'] ?? ''));
 
@@ -45,17 +79,22 @@ $variants = array_values(array_filter($variantsRaw, static function ($variant) {
 $hasVariants = (int) ($product['has_variants'] ?? ($product['product_has_variants'] ?? (!empty($variants) ? 1 : 0)));
 $variantInventoryMode = (int) ($product['variant_inventory_mode'] ?? ($product['product_variant_inventory_mode'] ?? 0));
 
-$extractVariantStock = static function (array $variant, int $fallbackStock): int {
-    if (($variant['stock'] ?? null) !== null && $variant['stock'] !== '') {
-        return (int) $variant['stock'];
+$extractVariantStock = static function (array $variant, int $fallbackStock) use ($resolveStockData): array {
+    $stockData = $resolveStockData($variant);
+
+    if ($stockData['explicit']) {
+        return $stockData;
     }
 
-    return $fallbackStock;
+    return [
+        'value' => $fallbackStock,
+        'explicit' => false,
+    ];
 };
 
 $hasVariantStockValues = false;
 foreach ($variants as $variantItem) {
-    if (($variantItem['stock'] ?? null) !== null && $variantItem['stock'] !== '') {
+    if ($extractVariantStock($variantItem, $baseStock)['explicit']) {
         $hasVariantStockValues = true;
         break;
     }
@@ -178,10 +217,17 @@ if ($defaultVariant === null && !empty($variants)) {
     $defaultVariant = $variants[0];
 }
 
-if ($defaultVariant !== null && $shouldEnforceVariantStock && $extractVariantStock($defaultVariant, $baseStock) <= 0) {
+$defaultVariantStockData = $defaultVariant !== null
+    ? $extractVariantStock($defaultVariant, $baseStock)
+    : ['value' => $baseStock, 'explicit' => false];
+
+if ($defaultVariant !== null && $shouldEnforceVariantStock && $defaultVariantStockData['explicit'] && $defaultVariantStockData['value'] <= 0) {
     foreach ($variants as $variantOption) {
-        if ($extractVariantStock($variantOption, $baseStock) > 0) {
+        $variantOptionStockData = $extractVariantStock($variantOption, $baseStock);
+
+        if (!$variantOptionStockData['explicit'] || $variantOptionStockData['value'] > 0) {
             $defaultVariant = $variantOption;
+            $defaultVariantStockData = $variantOptionStockData;
             break;
         }
     }
@@ -190,6 +236,7 @@ if ($defaultVariant !== null && $shouldEnforceVariantStock && $extractVariantSto
 $selectedPriceAmount = $basePriceAmount;
 $selectedSalePriceAmount = $baseSalePriceAmount;
 $selectedStock = $baseStock;
+$selectedVariantTracksStock = false;
 
 if ($defaultVariant !== null) {
     if (($defaultVariant['price'] ?? null) !== null && $defaultVariant['price'] !== '') {
@@ -200,9 +247,8 @@ if ($defaultVariant !== null) {
         $selectedSalePriceAmount = (float) $defaultVariant['sale_price'];
     }
 
-    if (($defaultVariant['stock'] ?? null) !== null && $defaultVariant['stock'] !== '') {
-        $selectedStock = (int) $defaultVariant['stock'];
-    }
+    $selectedStock = $defaultVariantStockData['value'];
+    $selectedVariantTracksStock = $shouldEnforceVariantStock && $defaultVariantStockData['explicit'];
 }
 
 $selectedPrice = $formatPrice($selectedPriceAmount);
@@ -228,7 +274,7 @@ if ($defaultVariant !== null) {
 }
 
 if (!empty($variants)) {
-    $isProductAvailable = $shouldEnforceVariantStock ? ($selectedStock > 0 || $backorderAvailable) : true;
+    $isProductAvailable = $selectedVariantTracksStock ? ($selectedStock > 0 || $backorderAvailable) : true;
 } else {
     $isProductAvailable = $selectedStock > 0 || $backorderAvailable;
 }
@@ -279,14 +325,17 @@ $imageUrl = ($mainImage['url'] ?? $product['main_image'] ?? 'https://placehold.n
 
 $variantsForJs = [];
 $variantStocksById = [];
+$variantTracksStockById = [];
 foreach ($variants as $variant) {
     $variantId = trim((string) ($variant['id'] ?? ''));
     if ($variantId === '') {
         continue;
     }
 
-    $variantStock = $extractVariantStock($variant, $baseStock);
-    $isSelectable = !$shouldEnforceVariantStock || $variantStock > 0 || $backorderAvailable;
+    $variantStockData = $extractVariantStock($variant, $baseStock);
+    $variantStock = $variantStockData['value'];
+    $variantTracksStock = $shouldEnforceVariantStock && $variantStockData['explicit'];
+    $isSelectable = !$variantTracksStock || $variantStock > 0 || $backorderAvailable;
     $variantOptionsMap = [];
     $variantOptionValues = is_array($variant['option_values'] ?? null) ? $variant['option_values'] : [];
 
@@ -305,6 +354,7 @@ foreach ($variants as $variant) {
     }
 
     $variantStocksById[$variantId] = $variantStock;
+    $variantTracksStockById[$variantId] = $variantTracksStock;
 
     $variantsForJs[] = [
         'id' => $variantId,
@@ -313,7 +363,7 @@ foreach ($variants as $variant) {
         'price' => ($variant['price'] ?? null) !== null && $variant['price'] !== '' ? (float) $variant['price'] : $basePriceAmount,
         'sale_price' => ($variant['sale_price'] ?? null) !== null && $variant['sale_price'] !== '' ? (float) $variant['sale_price'] : 0,
         'stock' => $variantStock,
-        'track_stock' => $shouldEnforceVariantStock ? 1 : 0,
+        'track_stock' => $variantTracksStock ? 1 : 0,
         'is_selectable' => $isSelectable ? 1 : 0,
         'backorder_available' => $backorderAvailable ? 1 : 0,
     ];
@@ -362,11 +412,13 @@ if (class_exists($gaTrackerClass)) {
     'variantSelectorLabel' => $variantSelectorLabel,
     'variantOptionGroups' => $variantOptionGroups,
     'variantStocksById' => $variantStocksById,
+    'variantTracksStockById' => $variantTracksStockById,
     'shouldEnforceVariantStock' => $shouldEnforceVariantStock,
     'defaultVariant' => $defaultVariant,
     'defaultVariantOptions' => $defaultVariantOptions,
     'buildVariantLabel' => $buildVariantLabel,
     'selectedStock' => $selectedStock,
+    'selectedVariantTracksStock' => $selectedVariantTracksStock,
     'backorderAvailable' => $backorderAvailable,
     'backorderMessage' => $backorderMessage,
     'gaItemPayload' => $gaItemPayload,
