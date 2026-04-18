@@ -41,6 +41,8 @@
     }
 
     function initQuantityButtons(scope) {
+        var $scope = $(scope);
+
         function normalizeQuantityInput($input) {
             var currentVal = parseInt($input.val(), 10);
             var rawMaxStock = $input.attr('data-max-stock');
@@ -64,7 +66,10 @@
             };
         }
 
-        $(scope).on('click.shopProductQty', '.qty_btn', function (event) {
+        $scope.off('click.shopProductQty', '.qty_btn');
+        $scope.off('change.shopProductQty blur.shopProductQty', '.cart-qty-input');
+
+        $scope.on('click.shopProductQty', '.qty_btn', function (event) {
             event.preventDefault();
 
             var $input = $(this).siblings('.cart-qty-input');
@@ -82,7 +87,7 @@
             }
         });
 
-        $(scope).on('change.shopProductQty blur.shopProductQty', '.cart-qty-input', function () {
+        $scope.on('change.shopProductQty blur.shopProductQty', '.cart-qty-input', function () {
             normalizeQuantityInput($(this));
         });
     }
